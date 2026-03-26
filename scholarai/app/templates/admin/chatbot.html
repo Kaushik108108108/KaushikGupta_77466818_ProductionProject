@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarAI — Admin Chatbot</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body data-role="admin">
+{% set active = 'chatbot' %}{% include 'shared/nav_admin.html' with context %}
+<div class="page">
+  <div class="chat-wrap">
+    <div class="chat-main">
+      <div class="chat-window">
+        <div class="chat-header">
+          <div class="chat-ai-icon admin">AI</div>
+          <div><div class="chat-name">ScholarAI Admin Assistant</div><div class="chat-status">● ONLINE — Student database connected</div></div>
+          <div class="chat-session">Session: ADM-{{ range(1000,9999)|random }}</div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-msg bot">
+            <div class="chat-msg__avatar admin">AI</div>
+            <div class="chat-msg__bubble">Hello Admin! I can help with student risk analysis, performance summaries, bulk email composition, and prediction reports. What do you need?</div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="Ask about students, risks, predictions..."/>
+          <button class="chat-send admin" id="chatSend">SEND →</button>
+        </div>
+      </div>
+    </div>
+    <div class="chat-sidebar">
+      <div class="card mb-0">
+        <div class="form-label mb-12">Quick Prompts</div>
+        <div class="chat-prompt-item">Show all high-risk students</div>
+        <div class="chat-prompt-item">Students with dues &gt; ₹3,000</div>
+        <div class="chat-prompt-item">Which class has worst attendance?</div>
+        <div class="chat-prompt-item">Predict next term outcomes</div>
+        <div class="chat-prompt-item">Generate risk summary report</div>
+        <div class="chat-prompt-item">Draft bulk warning email</div>
+      </div>
+      <div class="card mb-0">
+        <div class="form-label mb-12">Chat History</div>
+        {% for h in chat_session %}
+        <div style="font-size:12px;color:var(--text-lt);padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;">{{ h.session_label }}</div>
+        {% endfor %}
+      </div>
+      <div class="card mb-0">
+        <div class="form-label mb-12">System Stats</div>
+        <div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border);">
+          <span class="fs-12 text-muted">High Risk</span><span class="mono fw-700 text-red fs-12">12</span>
+        </div>
+        <div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border);">
+          <span class="fs-12 text-muted">Avg PI Score</span><span class="mono fw-700 text-amber fs-12">84%</span>
+        </div>
+        <div class="flex-between" style="padding:6px 0;">
+          <span class="fs-12 text-muted">Predictions Run</span><span class="mono fw-700 text-blue fs-12">47</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const CHAT_API = "{{ url_for('admin.chatbot_send') }}";
+</script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+</body>
+</html>

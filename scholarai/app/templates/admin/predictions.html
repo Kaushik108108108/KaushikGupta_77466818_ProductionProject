@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarAI — Predictions</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body data-role="admin">
+{% set active = 'predictions' %}{% include 'shared/nav_admin.html' with context %}
+<div class="page">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert {% if cat=='success' %}success{% else %}danger{% endif %}" style="margin-bottom:16px;">
+      <span class="alert__icon">{% if cat=='success' %}✓{% else %}⚠{% endif %}</span>
+      <div class="alert__text">{{ msg }}</div>
+    </div>
+  {% endfor %}
+{% endwith %}
+
+<!-- RUN PREDICTION MODAL -->
+<div id="predModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:var(--white);width:520px;border-top:4px solid var(--blue);padding:28px 32px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <div style="font-weight:700;font-size:16px;">Run New Prediction</div>
+      <button onclick="document.getElementById('predModal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('admin.run_prediction') }}" style="display:flex;flex-direction:column;gap:16px;">
+      <div class="form-group">
+        <label class="form-label">Select Student</label>
+        <select name="student_id" class="form-control" required>
+          <option value="">Choose student...</option>
+          {% for s in students %}
+          <option value="{{ s.student_id }}">{{ s.student_id }} — {{ s.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select name="subject_name" class="form-control" required>
+          <option>Mathematics</option><option>Science</option><option>English</option>
+          <option>History</option><option>Geography</option><option>Computer Science</option>
+          <option>Physical Education</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Term 1 Score</label>
+          <input type="number" name="term1_score" class="form-control" placeholder="0–100" min="0" max="100" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Term 2 Score</label>
+          <input type="number" name="term2_score" class="form-control" placeholder="0–100" min="0" max="100" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Term 3 Score</label>
+          <input type="number" name="term3_score" class="form-control" placeholder="0–100" min="0" max="100" required/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Attendance Rate (%)</label>
+        <input type="number" name="attendance_rate" class="form-control" placeholder="e.g. 85" min="0" max="100" required/>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border);">
+        <button type="button" onclick="document.getElementById('predModal').style.display='none'" class="btn btn-ghost">CANCEL</button>
+        <button type="submit" class="btn btn-primary">RUN PREDICTION →</button>
+      </div>
+    </form>
+  </div>
+</div>
+  <div class="stat-row cols-4">
+    <div class="stat-rect blue"><div class="stat-rect__label">Total Predictions Run</div><div class="stat-rect__value">{{ predictions|length }}</div><div class="stat-rect__sub">This academic term</div></div>
+    <div class="stat-rect red"><div class="stat-rect__label">High Risk Detected</div><div class="stat-rect__value">{{ predictions|selectattr('risk_level','eq','high')|list|length }}</div><div class="stat-rect__sub">Flagged by AI model</div></div>
+    <div class="stat-rect amber"><div class="stat-rect__label">Model Accuracy</div><div class="stat-rect__value">87%</div><div class="stat-rect__sub">Validated on test set</div></div>
+    <div class="stat-rect green"><div class="stat-rect__label">Avg Confidence</div><div class="stat-rect__value">{{ (predictions|sum(attribute='confidence_score') / predictions|length)|round|int }}%</div><div class="stat-rect__sub">AI prediction confidence</div></div>
+  </div>
+  <div class="card mb-0">
+    <div class="section-head">
+      <div class="section-head__left"><div class="section-head__bar"></div><span class="section-head__title">All Prediction Records</span></div>
+      <div class="section-head__actions">
+  <button class="btn btn-primary sm" onclick="document.getElementById('predModal').style.display='flex'">+ RUN NEW PREDICTION</button>
+  <a href="{{ url_for('admin.export_predictions') }}"><button class="btn btn-ghost sm">📄 EXPORT ALL</button></a>
+</div>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Prediction ID</th><th>Student</th><th>Class</th><th>Subject</th><th>Predicted Score</th><th>Risk Level</th><th>Confidence</th><th>Run By</th><th>Date</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for p in predictions %}
+        <tr {% if p.risk_level=='high' %}class="high-risk"{% endif %}>
+          <td class="mono text-muted">{{ p.prediction_id }}</td>
+          <td><strong>{{ p.full_name }}</strong></td>
+          <td>{{ p.class_level }}</td>
+          <td>{{ p.subject_name }}</td>
+          <td><span class="mono fw-800 {% if p.predicted_score<65 %}text-red{% elif p.predicted_score<80 %}text-amber{% else %}text-green{% endif %}">{{ p.predicted_score }}%</span></td>
+          <td><span class="risk {{ p.risk_level }}">{{ 'HIGH RISK' if p.risk_level=='high' else 'MEDIUM' if p.risk_level=='medium' else 'LOW RISK' }}</span></td>
+          <td class="mono">{{ p.confidence_score }}%</td>
+          <td class="text-muted">{{ p.predicted_by }}</td>
+          <td class="text-muted">{{ p.created_at }}</td>
+          <td><a href="{{ url_for('admin.student_details', student_id=p.student_id) }}"><button class="btn btn-outline sm">VIEW</button></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="table-footer"><span class="mono fs-11 text-muted">{{ predictions|length }} records</span></div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarAI — Student Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-panel-left student">
+    <div class="login-brand">
+      <div class="login-logo student">SA</div>
+      <div class="login-appname student">ScholarAI</div>
+    </div>
+    <div class="login-headline">Track Your<br><span class="blue">Academic</span><br>Journey</div>
+    <div class="login-sub">Submit your grades, get AI-powered predictions, personalised recommendations, and chat with your academic assistant.</div>
+    <div class="login-stats">
+      <div class="login-stat"><div class="login-stat__val student">7</div><div class="login-stat__lbl">Subjects Tracked</div></div>
+      <div class="login-stat"><div class="login-stat__val student">3</div><div class="login-stat__lbl">Term Scores</div></div>
+      <div class="login-stat"><div class="login-stat__val student">AI</div><div class="login-stat__lbl">Recommendations</div></div>
+    </div>
+  </div>
+  <div class="login-panel-right student">
+    <div class="login-form-title student">Sign In</div>
+    <div class="login-form-sub student">Access your performance portal</div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert danger" style="margin-bottom:16px;border-left-color:var(--red);">
+          <span class="alert__icon">⚠</span><div class="alert__text">{{ msg }}</div>
+        </div>
+      {% endfor %}
+    {% endwith %}
+    <form method="POST" class="login-form">
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" name="email" class="form-control" placeholder="student@school.edu" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-control" placeholder="••••••••••" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Student ID</label>
+        <input type="text" name="student_id" class="form-control" placeholder="e.g. STU-001" required/>
+      </div>
+      <button type="submit" class="btn btn-primary full" style="padding:13px;font-size:14px;letter-spacing:0.05em;margin-top:8px;">SIGN IN TO PORTAL →</button>
+      <div class="login-forgot student">Forgot password? Contact your class teacher</div>
+      <div style="border-top:1px solid var(--border);padding-top:18px;text-align:center;">
+        <span class="fs-12 text-muted">Admin? </span>
+        <a href="{{ url_for('auth.admin_login') }}" style="font-size:12px;color:var(--blue);font-weight:600;">Admin Portal →</a>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>

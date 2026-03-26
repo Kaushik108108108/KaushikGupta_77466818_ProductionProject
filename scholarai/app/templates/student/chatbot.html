@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarAI — Student Chatbot</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body data-role="student">
+{% set active = 'chatbot' %}{% include 'shared/nav_student.html' with context %}
+<div class="page">
+  <div class="chat-wrap">
+    <div class="chat-main">
+      <div class="chat-window">
+        <div class="chat-header">
+          <div class="chat-ai-icon student">AI</div>
+          <div><div class="chat-name">ScholarAI Student Assistant</div><div class="chat-status">● ONLINE — Personalised to your profile</div></div>
+          <div class="chat-session">{{ student_name }} / {{ student_id }}</div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-msg bot">
+            <div class="chat-msg__avatar student">AI</div>
+            <div class="chat-msg__bubble">Hi {{ student_name }}! I'm your personal ScholarAI assistant. I can help you understand your performance, suggest study strategies, and answer questions. What would you like to know?</div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="Ask about your grades, predictions, or study tips..."/>
+          <button class="chat-send student" id="chatSend">SEND →</button>
+        </div>
+      </div>
+    </div>
+    <div class="chat-sidebar">
+      <div class="card mb-0">
+        <div class="form-label mb-12">Suggested Questions</div>
+        <div class="chat-prompt-item student">How is my PI calculated?</div>
+        <div class="chat-prompt-item student">Which subject needs most attention?</div>
+        <div class="chat-prompt-item student">Tips to improve attendance?</div>
+        <div class="chat-prompt-item student">What is my predicted grade?</div>
+        <div class="chat-prompt-item student">How to request a teacher meeting?</div>
+        <div class="chat-prompt-item student">Study plan for next term?</div>
+      </div>
+      <div class="card mb-0">
+        <div class="form-label mb-12">Your Quick Stats</div>
+        <div class="flex-between" style="padding:7px 0;border-bottom:1px solid var(--border);"><span class="fs-12 text-muted">Current PI</span><span class="mono fw-700 text-green fs-12">85%</span></div>
+        <div class="flex-between" style="padding:7px 0;border-bottom:1px solid var(--border);"><span class="fs-12 text-muted">Risk Level</span><span class="mono fw-700 text-green fs-12">LOW</span></div>
+        <div class="flex-between" style="padding:7px 0;"><span class="fs-12 text-muted">Predictions</span><span class="mono fw-700 text-blue fs-12">5</span></div>
+      </div>
+      <div class="card mb-0">
+        <div class="form-label mb-12">Chat History</div>
+        {% for h in chat_session %}
+        <div style="font-size:12px;color:var(--text-lt);padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;">{{ h.session_label }}</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const CHAT_API  = "{{ url_for('student.chatbot_send') }}";
+const CHAT_ROLE = "student";
+</script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+</body>
+</html>

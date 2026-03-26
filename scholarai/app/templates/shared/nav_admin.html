@@ -1,0 +1,18 @@
+<nav class="topnav">
+  <div class="topnav__brand">
+    <div class="topnav__logo">SA</div>
+    <span class="topnav__title">SCHOLAR AI</span>
+  </div>
+  <div class="topnav__links">
+    <a href="{{ url_for('admin.dashboard') }}"        class="topnav__link {% if active=='dashboard'    %}active{% endif %}">DASHBOARD</a>
+    <a href="{{ url_for('admin.student_details', student_id='STU-001') }}" class="topnav__link {% if active=='students'     %}active{% endif %}">STUDENTS</a>
+    <a href="{{ url_for('admin.predictions') }}"      class="topnav__link {% if active=='predictions'  %}active{% endif %}">PREDICTIONS</a>
+    <a href="{{ url_for('admin.reports') }}"          class="topnav__link {% if active=='reports'      %}active{% endif %}">REPORTS</a>
+    <a href="{{ url_for('admin.chatbot') }}"          class="topnav__link {% if active=='chatbot'      %}active{% endif %}">CHATBOT</a>
+  </div>
+  <div class="topnav__user">
+    <div class="topnav__avatar admin">AD</div>
+    <span class="topnav__role">Administrator</span>
+    <a href="{{ url_for('auth.admin_logout') }}" class="topnav__logout">LOGOUT</a>
+  </div>
+</nav>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarAI — Activity</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body data-role="student">
+{% set active = 'activity' %}{% include 'shared/nav_student.html' with context %}
+<div class="page">
+  <div style="font-weight:800;font-size:18px;margin-bottom:22px;">Prediction History &amp; Results</div>
+  <div class="card">
+    <div class="section-head">
+      <div class="section-head__left"><div class="section-head__bar" style="background:var(--cyan);"></div><span class="section-head__title">Search Prediction Records</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:14px;align-items:flex-end;">
+      <div class="form-group"><label class="form-label">Class</label><input type="text" class="form-control" placeholder="e.g. 10"/></div>
+      <div class="form-group"><label class="form-label">Section</label><input type="text" class="form-control" placeholder="e.g. A"/></div>
+      <div class="form-group"><label class="form-label">Student ID</label><input type="text" class="form-control" placeholder="STU-001"/></div>
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-control"><option>All Subjects</option><option>Mathematics</option><option>Science</option><option>English</option><option>History</option><option>Geography</option><option>Computer Science</option><option>Physical Education</option></select>
+      </div>
+      <button class="btn btn-cyan">SEARCH</button>
+    </div>
+  </div>
+
+  <div class="stat-row cols-4">
+    <div class="stat-rect blue"><div class="stat-rect__label">Total Predictions</div><div class="stat-rect__value">{{ stats.total }}</div><div class="stat-rect__sub">All time records</div></div>
+    <div class="stat-rect red"><div class="stat-rect__label">High Risk Results</div><div class="stat-rect__value">{{ stats.high_risk }}</div><div class="stat-rect__sub">Requires attention</div></div>
+    <div class="stat-rect amber"><div class="stat-rect__label">Avg Predicted Score</div><div class="stat-rect__value">{{ stats.avg_score }}%</div><div class="stat-rect__sub">Across all subjects</div></div>
+    <div class="stat-rect green"><div class="stat-rect__label">Best Subject</div><div class="stat-rect__value">{{ stats.best_subject }}</div><div class="stat-rect__sub">Highest predicted score</div></div>
+  </div>
+
+  <div class="card mb-0">
+    <div class="section-head">
+      <div class="section-head__left"><div class="section-head__bar" style="background:var(--cyan);"></div><span class="section-head__title">All Prediction Attempts</span></div>
+      <div class="section-head__actions"><button class="btn btn-ghost sm">📄 DOWNLOAD PDF</button></div>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Prediction ID</th><th>Date</th><th>Subject</th><th>Predicted Score</th><th>Performance Index</th><th>Risk Level</th><th>AI Recommendation</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for h in history %}
+        <tr {% if h.risk_level=='high' %}class="high-risk"{% endif %}>
+          <td class="mono text-muted">{{ h.prediction_id }}</td>
+          <td class="text-muted">{{ h.created_at }}</td>
+          <td><strong>{{ h.subject_name }}</strong></td>
+          <td><span class="mono fw-800 {% if h.predicted_score<65 %}text-red{% elif h.predicted_score<80 %}text-amber{% else %}text-green{% endif %}">{{ h.predicted_score }}%</span></td>
+          <td>{{ h.performance_index }}</td>
+          <td><span class="risk {{ h.risk_level }}">{{ 'HIGH RISK' if h.risk_level=='high' else 'MEDIUM' if h.risk_level=='medium' else 'LOW RISK' }}</span></td>
+          <td class="text-muted fs-12">{{ h.ai_recommendation }}</td>
+          <td><button class="btn btn-outline sm">EMAIL</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="table-footer">
+      <a href="{{ url_for('student.dashboard') }}"><button class="btn btn-ghost sm">← BACK TO DASHBOARD</button></a>
+      <span class="mono fs-11 text-muted">{{ history|length }} records found</span>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarAI — Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body data-role="admin">
+{% include 'shared/nav_admin.html' with context %}
+{% set active = 'dashboard' %}
+<div class="page">
+
+  {% if stats.high > 0 %}
+  <div class="alert danger">
+    <span class="alert__icon">⚠</span>
+    <div class="alert__text"><strong>{{ stats.high }} students flagged as HIGH RISK</strong> — Immediate intervention recommended.</div>
+    <div class="alert__action">
+      <a href="{{ url_for('admin.dashboard', risk='high') }}"><button class="btn btn-danger sm">VIEW ALL →</button></a>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="stat-row cols-4">
+    <div class="stat-rect blue" style="cursor:pointer;" onclick="window.location='{{ url_for('admin.dashboard') }}'">
+      <span class="stat-rect__icon">👥</span>
+      <div class="stat-rect__label">Total Students</div>
+      <div class="stat-rect__value">{{ stats.total }}</div>
+      <div class="stat-rect__sub">Enrolled this academic year</div>
+    </div>
+    <div class="stat-rect red" style="cursor:pointer;" onclick="window.location='{{ url_for('admin.dashboard', risk='high') }}'">
+      <span class="stat-rect__icon">⚠</span>
+      <div class="stat-rect__label">High Risk</div>
+      <div class="stat-rect__value">{{ stats.high }}</div>
+      <div class="stat-rect__sub">Click to filter ↓</div>
+    </div>
+    <div class="stat-rect amber" style="cursor:pointer;" onclick="window.location='{{ url_for('admin.dashboard', risk='medium') }}'">
+      <span class="stat-rect__icon">📊</span>
+      <div class="stat-rect__label">Medium Risk</div>
+      <div class="stat-rect__value">{{ stats.medium }}</div>
+      <div class="stat-rect__sub">Click to filter ↓</div>
+    </div>
+    <div class="stat-rect green">
+      <span class="stat-rect__icon">📈</span>
+      <div class="stat-rect__label">Performance Index</div>
+      <div class="stat-rect__value">{{ stats.avg_pi }}%</div>
+      <div class="stat-rect__sub">School-wide average</div>
+    </div>
+  </div>
+
+  <div class="card mb-0">
+    <div class="section-head">
+      <div class="section-head__left">
+        <div class="section-head__bar"></div>
+        <span class="section-head__title">
+          Student Performance Overview
+          {% if risk_filter == 'high' %}
+            <span style="font-size:11px;font-weight:600;color:var(--red);font-family:var(--mono);margin-left:10px;background:var(--red-lt);padding:3px 10px;border:1px solid var(--red);">FILTERED: HIGH RISK ONLY</span>
+          {% elif risk_filter == 'medium' %}
+            <span style="font-size:11px;font-weight:600;color:var(--amber);font-family:var(--mono);margin-left:10px;background:var(--amber-lt);padding:3px 10px;border:1px solid var(--amber);">FILTERED: MEDIUM RISK ONLY</span>
+          {% elif search_query %}
+            <span style="font-size:11px;font-weight:600;color:var(--blue);font-family:var(--mono);margin-left:10px;background:var(--blue-lt);padding:3px 10px;border:1px solid var(--blue);">SEARCH: "{{ search_query }}"</span>
+          {% endif %}
+        </span>
+      </div>
+      <div class="section-head__actions" style="flex-wrap:wrap;gap:8px;">
+        <!-- SEARCH -->
+        <form method="GET" style="display:flex;gap:0;">
+          <input type="hidden" name="cls"  value="{{ cls_filter }}"/>
+          <input type="hidden" name="sec"  value="{{ sec_filter }}"/>
+          <input type="hidden" name="risk" value="{{ risk_filter }}"/>
+          <input type="text" name="q" value="{{ search_query }}"
+            placeholder="Search by name or ID..."
+            style="padding:6px 12px;border:1px solid var(--border);border-right:none;font-size:12px;font-family:var(--font);width:190px;outline:none;"/>
+          <button type="submit" class="btn btn-primary sm">SEARCH</button>
+          {% if search_query %}
+          <a href="{{ url_for('admin.dashboard', cls=cls_filter, sec=sec_filter, risk=risk_filter) }}">
+            <button type="button" class="btn btn-ghost sm">✕</button>
+          </a>
+          {% endif %}
+        </form>
+        <!-- FILTERS -->
+        <form method="GET" style="display:flex;gap:8px;align-items:center;">
+          {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}"/>{% endif %}
+          <select name="cls" class="form-control" style="width:120px;padding:6px 10px;font-size:11px;">
+            <option value="">All Classes</option>
+            <option value="10" {% if cls_filter=='10' %}selected{% endif %}>Class 10</option>
+            <option value="11" {% if cls_filter=='11' %}selected{% endif %}>Class 11</option>
+          </select>
+          <select name="sec" class="form-control" style="width:110px;padding:6px 10px;font-size:11px;">
+            <option value="">All Sections</option>
+            <option value="A" {% if sec_filter=='A' %}selected{% endif %}>Section A</option>
+            <option value="B" {% if sec_filter=='B' %}selected{% endif %}>Section B</option>
+            <option value="C" {% if sec_filter=='C' %}selected{% endif %}>Section C</option>
+          </select>
+          <select name="risk" class="form-control" style="width:130px;padding:6px 10px;font-size:11px;">
+            <option value="">All Risk Levels</option>
+            <option value="high"   {% if risk_filter=='high'   %}selected{% endif %}>High Risk</option>
+            <option value="medium" {% if risk_filter=='medium' %}selected{% endif %}>Medium Risk</option>
+            <option value="low"    {% if risk_filter=='low'    %}selected{% endif %}>Low Risk</option>
+          </select>
+          <button type="submit" class="btn btn-primary sm">APPLY</button>
+          {% if risk_filter or cls_filter or sec_filter %}
+          <a href="{{ url_for('admin.dashboard') }}"><button type="button" class="btn btn-ghost sm">CLEAR</button></a>
+          {% endif %}
+        </form>
+        <button class="btn btn-danger sm" id="bulkEmailBtn">📧 BULK EMAIL HIGH RISK</button>
+      </div>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Student ID</th><th>Name</th><th>Class</th><th>Attendance</th>
+          <th>PI Score</th><th>Dues (₹)</th><th>Complaints</th><th>Risk Level</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr {% if s.risk_level == 'high' %}class="high-risk"{% endif %}>
+          <td class="mono text-muted">{{ s.student_id }}</td>
+          <td><strong>{{ s.full_name }}</strong></td>
+          <td>{{ s.class_level }} / {{ s.section }}</td>
+          <td><span class="mono fw-700 {% if s.attendance_rate < 75 %}text-red{% else %}text-green{% endif %}">{{ s.attendance_rate }}%</span></td>
+          <td>
+            <div class="flex-center gap-8">
+              <div class="progress">
+                <div class="progress__fill {% if s.performance_index < 65 %}red{% elif s.performance_index < 80 %}amber{% else %}green{% endif %}" style="width:{{ s.performance_index }}%"></div>
+              </div>
+              <span class="mono fw-700 {% if s.performance_index < 65 %}text-red{% elif s.performance_index < 80 %}text-amber{% else %}text-green{% endif %}">{{ s.performance_index }}%</span>
+            </div>
+          </td>
+          <td><span class="mono fw-700 {% if s.due_amount > 0 %}text-red{% else %}text-muted{% endif %}">{% if s.due_amount > 0 %}₹{{ "{:,}".format(s.due_amount) }}{% else %}₹0{% endif %}</span></td>
+          <td><span class="mono {% if s.complaint_count > 1 %}text-red{% elif s.complaint_count == 1 %}text-amber{% else %}text-muted{% endif %}">{{ s.complaint_count }}</span></td>
+          <td><span class="risk {{ s.risk_level }}">{{ 'HIGH RISK' if s.risk_level=='high' else 'MEDIUM' if s.risk_level=='medium' else 'LOW RISK' }}</span></td>
+          <td>
+            <div class="flex gap-8">
+              <a href="{{ url_for('admin.student_details', student_id=s.student_id) }}"><button class="btn btn-outline sm">DETAILS</button></a>
+              <a href="{{ url_for('admin.send_email', student_id=s.student_id) }}"><button class="btn btn-primary sm">EMAIL</button></a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="table-footer">
+      <span class="mono fs-11 text-muted">
+        Showing {{ students|length }} student{{ 's' if students|length != 1 else '' }}
+        {% if risk_filter %} — filtered by <strong>{{ risk_filter|upper }} RISK</strong>{% endif %}
+        {% if search_query %} — search: "<strong>{{ search_query }}</strong>"{% endif %}
+        {% if students|length == 0 %} — <span style="color:var(--red);">No students match</span>{% endif %}
+      </span>
+      {% if risk_filter or search_query %}
+      <a href="{{ url_for('admin.dashboard') }}"><button class="btn btn-ghost sm">✕ CLEAR FILTERS</button></a>
+      {% else %}
+      <div class="pagination">
+        <button class="page-btn">←</button>
+        <button class="page-btn active">1</button>
+        <button class="page-btn">2</button>
+        <button class="page-btn">→</button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

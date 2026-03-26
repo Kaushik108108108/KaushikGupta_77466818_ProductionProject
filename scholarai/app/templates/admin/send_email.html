@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarAI — Send Email</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body data-role="admin">
+{% set active = 'students' %}{% include 'shared/nav_admin.html' with context %}
+<div class="page" style="max-width:760px;">
+  <div class="breadcrumb">
+    <a href="{{ url_for('admin.dashboard') }}">DASHBOARD</a>
+    <span class="breadcrumb__sep">›</span>
+    <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}">{{ student.student_id }}</a>
+    <span class="breadcrumb__sep">›</span>
+    <span class="breadcrumb__current">SEND EMAIL</span>
+    <div class="breadcrumb__actions">
+      <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}"><button class="btn btn-ghost sm">← BACK</button></a>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert {% if cat=='success' %}success{% else %}danger{% endif %}" style="margin-bottom:16px;">
+        <span class="alert__icon">{% if cat=='success' %}✓{% else %}⚠{% endif %}</span>
+        <div class="alert__text">{{ msg }}</div>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="info-band mb-20">
+    <div class="info-band__item"><div class="info-band__label">Student</div><div class="info-band__value">{{ student.full_name }} ({{ student.student_id }})</div></div>
+    <div class="info-band__item"><div class="info-band__label">Risk Level</div><div class="info-band__value text-red">{{ student.risk_level|upper }} RISK</div></div>
+    <div class="info-band__item"><div class="info-band__label">PI Score</div><div class="info-band__value text-amber">{{ student.performance_index }}%</div></div>
+    <div class="info-band__item"><div class="info-band__label">Dues</div><div class="info-band__value {% if student.due_amount > 0 %}text-red{% else %}text-green{% endif %}">₹{{ "{:,}".format(student.due_amount) }}</div></div>
+    <div class="info-band__item"><div class="info-band__label">Attendance</div><div class="info-band__value {% if student.attendance_rate < 75 %}text-red{% else %}text-green{% endif %}">{{ student.attendance_rate }}%</div></div>
+  </div>
+
+  <div class="card mb-0">
+    <div class="section-head">
+      <div class="section-head__left"><div class="section-head__bar"></div><span class="section-head__title">Compose Email</span></div>
+    </div>
+    <form method="POST" style="display:flex;flex-direction:column;gap:18px;">
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Recipient (Student)</label>
+          <input type="email" name="to_email" class="form-control" value="{{ student.full_name.lower().replace(' ','.') }}@school.edu" readonly/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">CC — Guardian Email</label>
+          <input type="email" name="cc_email" class="form-control" placeholder="guardian@example.com"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Template</label>
+        <select name="template" class="form-control" id="emailTemplate">
+          <option>Custom Message</option>
+          <option>High Risk Warning</option>
+          <option>Attendance Alert</option>
+          <option>Fee Dues Reminder</option>
+          <option>Performance Improvement Notice</option>
+          <option>Parent Meeting Request</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <input type="text" name="subject" class="form-control" id="emailSubject" placeholder="e.g. Urgent: Academic Performance Concern"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Message Body</label>
+        <textarea name="body" class="form-control" id="emailBody" rows="8" style="resize:vertical;line-height:1.7;" placeholder="Compose your message..."></textarea>
+      </div>
+      <div class="flex-center gap-16" style="padding:12px 0;border-top:1px solid var(--border);">
+        <span class="form-label" style="margin-bottom:0;">PRIORITY:</span>
+        <label class="flex-center gap-8" style="font-size:13px;cursor:pointer;"><input type="radio" name="priority" value="normal"/> Normal</label>
+        <label class="flex-center gap-8" style="font-size:13px;cursor:pointer;"><input type="radio" name="priority" value="high" checked/> High</label>
+        <label class="flex-center gap-8" style="font-size:13px;cursor:pointer;"><input type="radio" name="priority" value="urgent"/> Urgent</label>
+      </div>
+      <div class="flex gap-8" style="justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border);">
+        <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}"><button type="button" class="btn btn-ghost">CANCEL</button></a>
+        <button type="button" class="btn btn-dark">SAVE AS DRAFT</button>
+        <button type="submit" class="btn btn-primary" id="sendEmailBtn">SEND EMAIL →</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

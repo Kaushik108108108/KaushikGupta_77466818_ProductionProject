@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarAI — Admin Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-panel-left admin">
+    <div class="login-brand">
+      <div class="login-logo admin">SA</div>
+      <div>
+        <div class="login-appname admin">ScholarAI</div>
+        <div style="color:var(--gray);font-size:11px;font-family:var(--mono);">ADMIN PORTAL v2.0</div>
+      </div>
+    </div>
+    <div class="login-headline">AI-Driven Early<br><span>Detection</span> of Student's<br>Academic Failure and<br>Personalized Support</div>
+    <div class="login-sub">AI-powered academic risk detection across attendance, grades, behavior records, and fee dues.</div>
+    <div class="login-stats">
+      <div class="login-stat"><div class="login-stat__val admin">254</div><div class="login-stat__lbl">Students Tracked</div></div>
+      <div class="login-stat"><div class="login-stat__val admin">87%</div><div class="login-stat__lbl">Prediction Accuracy</div></div>
+      <div class="login-stat"><div class="login-stat__val admin">12</div><div class="login-stat__lbl">High Risk Alerts</div></div>
+    </div>
+  </div>
+  <div class="login-panel-right admin">
+    <div class="login-form-title admin">Sign In</div>
+    <div class="login-form-sub admin">Administrator access only</div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert danger" style="margin-bottom:16px;">
+          <span class="alert__icon">⚠</span><div class="alert__text">{{ msg }}</div>
+        </div>
+      {% endfor %}
+    {% endwith %}
+    <form method="POST" class="login-form">
+      <div class="form-group">
+        <label class="form-label" style="color:var(--gray);">Employee ID / Username</label>
+        <input type="text" name="username" class="form-control dark" placeholder="admin@school.edu" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="color:var(--gray);">Password</label>
+        <input type="password" name="password" class="form-control dark" placeholder="••••••••••" required/>
+      </div>
+      <button type="submit" class="btn btn-primary full" style="padding:13px;font-size:14px;letter-spacing:0.05em;">SIGN IN TO DASHBOARD →</button>
+      <div class="login-forgot admin">Forgot credentials? Contact IT Support</div>
+      <div style="border-top:1px solid var(--navy-lt);padding-top:18px;text-align:center;">
+        <span style="font-size:12px;color:var(--gray);">Are you a student? </span>
+        <a href="{{ url_for('auth.student_login') }}" style="font-size:12px;color:var(--blue);font-weight:600;">Student Portal →</a>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>

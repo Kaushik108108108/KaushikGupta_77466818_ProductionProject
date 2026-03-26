@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarAI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <style>
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--navy);}
+    .hub{text-align:center;}
+    .hub__logo{width:64px;height:64px;background:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:22px;color:#fff;margin-bottom:20px;}
+    .hub__title{color:#fff;font-weight:800;font-size:32px;font-family:var(--mono);margin-bottom:8px;}
+    .hub__sub{color:var(--gray);font-size:14px;margin-bottom:48px;}
+    .hub__cards{display:flex;gap:20px;justify-content:center;}
+    .hub__card{width:270px;background:var(--navy-mid);border:1px solid var(--navy-lt);padding:32px 24px;text-decoration:none;display:block;transition:border-color 0.15s,transform 0.2s;text-align:left;}
+    .hub__card:hover{transform:translateY(-4px);}
+    .hub__card.admin:hover{border-color:var(--blue);}
+    .hub__card.student:hover{border-color:var(--blue);}
+    .hub__card-icon{font-size:32px;margin-bottom:16px;}
+    .hub__card-role{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:0.1em;margin-bottom:8px;}
+    .hub__card.admin .hub__card-role{color:var(--blue);}
+    .hub__card.student .hub__card-role{color:var(--blue);}
+    .hub__card-title{color:#fff;font-weight:700;font-size:18px;margin-bottom:8px;}
+    .hub__card-desc{color:var(--gray);font-size:12px;line-height:1.6;margin-bottom:20px;}
+    .hub__card-btn{display:inline-block;padding:9px 20px;font-weight:700;font-size:12px;letter-spacing:0.05em;}
+    .hub__card.admin .hub__card-btn{background:var(--blue);color:#fff;}
+    .hub__card.student .hub__card-btn{background:var(--blue);color:#fff;}
+    .hub__footer{margin-top:40px;color:var(--gray);font-size:11px;font-family:var(--mono);}
+  </style>
+</head>
+<body>
+  <div class="hub">
+    <div class="hub__logo">SA</div>
+    <div class="hub__title">ScholarAI</div>
+    <div class="hub__sub">Early Student Performance Prediction System</div>
+    <div class="hub__cards">
+      <a href="{{ url_for('auth.admin_login') }}" class="hub__card admin">
+        <div class="hub__card-icon">👨‍💼</div>
+        <div class="hub__card-role">ADMIN PORTAL</div>
+        <div class="hub__card-title">Administrator</div>
+        <div class="hub__card-desc">Monitor student risk levels, view detailed performance, send emails, and manage AI predictions.</div>
+        <div class="hub__card-btn">SIGN IN AS ADMIN →</div>
+      </a>
+      <a href="{{ url_for('auth.student_login') }}" class="hub__card student">
+        <div class="hub__card-icon">👨‍🎓</div>
+        <div class="hub__card-role">STUDENT PORTAL</div>
+        <div class="hub__card-title">Student</div>
+        <div class="hub__card-desc">Submit academic data, get AI-powered predictions, personalised recommendations, and chat with your assistant.</div>
+        <div class="hub__card-btn">SIGN IN AS STUDENT →</div>
+      </a>
+    </div>
+    <div class="hub__footer">ScholarAI v2.0 &nbsp;|&nbsp; Flask + Oracle Edition</div>
+  </div>
+</body>
+</html>

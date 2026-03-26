@@ -1,0 +1,16 @@
+<nav class="topnav">
+  <div class="topnav__brand">
+    <div class="topnav__logo">SA</div>
+    <span class="topnav__title">SCHOLAR AI — STUDENT</span>
+  </div>
+  <div class="topnav__links">
+    <a href="{{ url_for('student.dashboard') }}" class="topnav__link {% if active=='dashboard' %}active{% endif %}">DASHBOARD</a>
+    <a href="{{ url_for('student.activity') }}"  class="topnav__link {% if active=='activity'  %}active{% endif %}">ACTIVITY</a>
+    <a href="{{ url_for('student.chatbot') }}"   class="topnav__link {% if active=='chatbot'   %}active{% endif %}">CHATBOT</a>
+  </div>
+  <div class="topnav__user">
+    <div class="topnav__avatar student">ST</div>
+    <span class="topnav__role">{{ session.get('student_name', 'Student') }}</span>
+    <a href="{{ url_for('auth.student_logout') }}" class="topnav__logout">LOGOUT</a>
+  </div>
+</nav>
