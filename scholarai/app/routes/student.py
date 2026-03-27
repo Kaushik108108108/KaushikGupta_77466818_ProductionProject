@@ -1,5 +1,7 @@
+import requests
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, flash
 from app.db import fetch_one, fetch_all, execute_dml
+from app.ai_service import generate_ai_recommendation
 
 student_bp = Blueprint('student', __name__)
 
@@ -94,29 +96,27 @@ def _get_student_dashboard_info(student_id):
     return student
 
 
-def _build_ai_recommendation(subject_name, predicted_score, attendance_rate, trend):
-    notes = []
+def _build_ai_recommendation(subject_name, predicted_score, attendance_rate, trend,
+                             student_name="Student", risk_level="medium",
+                             term1_score=0, term2_score=0, term3_score=0):
+    """Calls Anthropic API via ai_service; falls back to rule-based if key is missing."""
+    return generate_ai_recommendation(
+        student_name=student_name,
+        subject_name=subject_name,
+        risk_level=risk_level,
+        trend=trend,
+        predicted_score=predicted_score,
+        attendance_rate=attendance_rate,
+        term1_score=term1_score,
+        term2_score=term2_score,
+        term3_score=term3_score,
+        audience="student",
+    )
 
-    if predicted_score < 55:
-        notes.append(f'{subject_name}: urgent improvement needed. Revise weak chapters and ask for teacher support.')
-    elif predicted_score < 75:
-        notes.append(f'{subject_name}: average performance. Practice weekly and solve more sample questions.')
-    else:
-        notes.append(f'{subject_name}: good progress. Keep revising regularly to maintain your score.')
 
-    if attendance_rate < 75:
-        notes.append('Attendance is below the safe threshold. Attend every class and practical session.')
-    elif attendance_rate < 85:
-        notes.append('Attendance can be improved further for better consistency.')
-
-    if trend == 'declining':
-        notes.append('Your trend is declining. Review mistakes from earlier terms immediately.')
-    elif trend == 'unstable':
-        notes.append('Your results are inconsistent. Follow a fixed weekly study plan.')
-    elif trend == 'improving':
-        notes.append('Your trend is improving. Continue the same study routine.')
-
-    return ' '.join(notes)
+# ── HELPER: rec_type badge from risk ──
+def _rec_type(risk_level):
+    return {'high': 'danger', 'medium': 'warning'}.get(risk_level, 'success')
 
 
 @student_bp.route('/dashboard')
@@ -129,35 +129,63 @@ def dashboard():
         flash('Student profile not found.', 'error')
         return redirect(url_for('auth.student_logout'))
 
-    recs = fetch_all("""
+    # Pull latest academic records for this student
+    academic_rows = fetch_all("""
         SELECT
-            NVL(sub.subject_name, 'General') AS subject_name,
-            recommendation_text,
-            rec_type
-        FROM ai_recommendations ar
-        LEFT JOIN subjects sub
-          ON sub.subject_id = ar.subject_id
+            sub.subject_name,
+            ar.attendance_rate,
+            ar.term1_score,
+            ar.term2_score,
+            ar.term3_score,
+            NVL(ar.predicted_score, 0)      AS predicted_score,
+            NVL(ar.trend, 'stable')         AS trend,
+            NVL(ar.trend_label, '→ Stable') AS trend_label
+        FROM student_academic_records ar
+        JOIN subjects sub ON sub.subject_id = ar.subject_id
         WHERE ar.student_id = :sid
-          AND ar.is_active = 'Y'
-        ORDER BY ar.created_at DESC
+        ORDER BY sub.subject_name
     """, {"sid": sid})
 
-    if not recs:
+    recs = []
+    if academic_rows:
+        # Generate a fresh AI recommendation for every subject
+        for row in academic_rows:
+            rec_text = _build_ai_recommendation(
+                subject_name=row["subject_name"],
+                predicted_score=float(row["predicted_score"]),
+                attendance_rate=float(row["attendance_rate"]),
+                trend=row["trend"],
+                student_name=student_info["full_name"],
+                risk_level=student_info["risk_level"],
+                term1_score=float(row["term1_score"]),
+                term2_score=float(row["term2_score"]),
+                term3_score=float(row["term3_score"]),
+            )
+            recs.append({
+                "subject_name": row["subject_name"],
+                "recommendation_text": rec_text,
+                "rec_type": _rec_type(student_info["risk_level"]),
+            })
+    else:
+        # Fallback: use stored ai_recommendations table
         recs = fetch_all("""
             SELECT
-                sub.subject_name,
-                NVL(ar.ai_recommendation, 'Keep practicing consistently and maintain regular attendance.') AS recommendation_text,
-                CASE
-                    WHEN NVL(ar.predicted_score, 0) < 55 THEN 'danger'
-                    WHEN NVL(ar.predicted_score, 0) < 75 THEN 'warning'
-                    ELSE 'success'
-                END AS rec_type
-            FROM student_academic_records ar
-            JOIN subjects sub
-              ON sub.subject_id = ar.subject_id
+                NVL(sub.subject_name, 'General') AS subject_name,
+                recommendation_text,
+                rec_type
+            FROM ai_recommendations ar
+            LEFT JOIN subjects sub ON sub.subject_id = ar.subject_id
             WHERE ar.student_id = :sid
-            ORDER BY sub.subject_name
+              AND ar.is_active = 'Y'
+            ORDER BY ar.created_at DESC
         """, {"sid": sid})
+
+        if not recs:
+            recs = [{
+                "subject_name": "General",
+                "recommendation_text": "Keep practicing consistently and maintain regular attendance.",
+                "rec_type": "success"
+            }]
 
     return render_template('student/dashboard.html', student=student_info, recs=recs)
 
@@ -208,6 +236,7 @@ def predict():
         flash('Selected subject was not found in the database.', 'error')
         return redirect(url_for('student.dashboard'))
 
+    # Score & risk calculation
     score_avg = (term1_score + term2_score + term3_score) / 3
     att_factor = (attendance_rate / 100) * 25
     predicted_score = round((score_avg * 0.75) + att_factor)
@@ -237,7 +266,19 @@ def predict():
 
     grade = get_grade(predicted_score)
     prediction_id = _next_prediction_id()
-    recommendation_text = _build_ai_recommendation(subject_name, predicted_score, attendance_rate, trend)
+
+    # AI recommendation for this specific subject prediction
+    recommendation_text = _build_ai_recommendation(
+        subject_name=subject_name,
+        predicted_score=predicted_score,
+        attendance_rate=attendance_rate,
+        trend=trend,
+        student_name=student_row["full_name"],
+        risk_level=risk_level,
+        term1_score=term1_score,
+        term2_score=term2_score,
+        term3_score=term3_score,
+    )
 
     execute_dml("""
         INSERT INTO predictions (
@@ -313,6 +354,7 @@ def predict():
         "ai_recommendation": recommendation_text,
     })
 
+    # Risk flags
     risk_flags = []
     if trend == 'declining':
         risk_flags.append('DECLINING TREND')
@@ -328,27 +370,12 @@ def predict():
         """, {"prediction_id": prediction_id, "flag_name": flag})
 
     student_info = _get_student_dashboard_info(sid)
-    recs = fetch_all("""
-        SELECT
-            NVL(sub.subject_name, 'General') AS subject_name,
-            recommendation_text,
-            rec_type
-        FROM ai_recommendations ar
-        LEFT JOIN subjects sub
-          ON sub.subject_id = ar.subject_id
-        WHERE ar.student_id = :sid
-          AND ar.is_active = 'Y'
-        ORDER BY ar.created_at DESC
-    """, {"sid": sid})
 
-    if not recs:
-        recs = [
-            {
-                "subject_name": subject_name,
-                "recommendation_text": recommendation_text,
-                "rec_type": "danger" if risk_level == "high" else "warning" if risk_level == "medium" else "success",
-            }
-        ]
+    recs = [{
+        "subject_name": subject_name,
+        "recommendation_text": recommendation_text,
+        "rec_type": _rec_type(risk_level),
+    }]
 
     result = {
         'predicted_score': predicted_score,
@@ -359,6 +386,7 @@ def predict():
         'trend': trend,
         'trend_label': trend_label,
         'trend_note': trend_note,
+        'ai_recommendation': recommendation_text,
     }
 
     return render_template(
@@ -450,7 +478,6 @@ def chatbot_send():
 
     sid = session.get('student_id')
     name = session.get('student_name', 'Student')
-    msg_lower = msg.lower()
 
     session_row = fetch_one("""
         SELECT session_id
@@ -465,18 +492,9 @@ def chatbot_send():
     if not session_row:
         execute_dml("""
             INSERT INTO chat_sessions (
-                owner_role,
-                admin_id,
-                student_id,
-                session_label,
-                is_active
-            )
-            VALUES (
-                'STUDENT',
-                NULL,
-                :student_id,
-                :session_label,
-                'Y'
+                owner_role, admin_id, student_id, session_label, is_active
+            ) VALUES (
+                'STUDENT', NULL, :student_id, :session_label, 'Y'
             )
         """, {
             "student_id": sid,
@@ -501,134 +519,25 @@ def chatbot_send():
         "message_text": msg
     })
 
-    if 'science' in msg_lower or 'improve' in msg_lower:
-        science_row = fetch_one("""
-            SELECT
-                NVL(p.subject_name_snapshot, s.subject_name) AS subject_name,
-                NVL(p.predicted_score, ar.predicted_score) AS predicted_score,
-                NVL(p.attendance_rate, ar.attendance_rate) AS attendance_rate,
-                NVL(p.trend_label, ar.trend_label) AS trend_label
-            FROM student_academic_records ar
-            JOIN subjects s
-              ON s.subject_id = ar.subject_id
-            LEFT JOIN (
-                SELECT p1.*
-                FROM predictions p1
-                WHERE p1.student_id = :sid
-            ) p
-              ON p.subject_id = ar.subject_id
-            WHERE ar.student_id = :sid
-              AND LOWER(s.subject_name) = 'science'
-            FETCH FIRST 1 ROWS ONLY
-        """, {"sid": sid})
-
-        if science_row:
-            reply = (
-                f'Based on your {science_row["subject_name"]} records:\n'
-                f'• Predicted score: {round(float(science_row["predicted_score"] or 0))}%\n'
-                f'• Attendance rate: {round(float(science_row["attendance_rate"] or 0))}%\n'
-                f'• Trend: {science_row["trend_label"] or "No trend yet"}\n\n'
-                f'Recommendations:\n'
-                f'1. Revise weak topics and solve past questions\n'
-                f'2. Attend every class and practical session\n'
-                f'3. Ask your teacher for a short review plan'
-            )
-        else:
-            weakest = fetch_one("""
-                SELECT
-                    subject_name_snapshot AS subject_name,
-                    predicted_score,
-                    attendance_rate,
-                    trend_label
-                FROM predictions
-                WHERE student_id = :sid
-                ORDER BY predicted_score ASC, created_at DESC
-                FETCH FIRST 1 ROWS ONLY
-            """, {"sid": sid})
-
-            if weakest:
-                reply = (
-                    f'Your weakest recent subject is {weakest["subject_name"]}.\n'
-                    f'• Predicted score: {round(float(weakest["predicted_score"] or 0))}%\n'
-                    f'• Attendance rate: {round(float(weakest["attendance_rate"] or 0))}%\n'
-                    f'• Trend: {weakest["trend_label"] or "No trend yet"}\n\n'
-                    f'Start by reviewing that subject for 30–45 minutes daily.'
-                )
-            else:
-                reply = 'I need at least one prediction record before I can suggest improvement steps. Run a prediction first from your dashboard.'
-
-    elif 'risk' in msg_lower:
-        student_row = fetch_one("""
-            SELECT
-                NVL(risk_level, 'low') AS risk_level,
-                NVL(performance_index, 0) AS performance_index
-            FROM students
-            WHERE student_id = :sid
-        """, {"sid": sid})
-
-        risky = fetch_all("""
-            SELECT subject_name_snapshot AS subject_name, predicted_score
-            FROM predictions
-            WHERE student_id = :sid
-              AND risk_level IN ('high', 'medium')
-            ORDER BY predicted_score ASC, created_at DESC
-            FETCH FIRST 3 ROWS ONLY
-        """, {"sid": sid})
-
-        if risky:
-            risk_lines = '\n'.join(
-                [f'⚠ {r["subject_name"]} — {round(float(r["predicted_score"]))}%'
-                 for r in risky]
-            )
-        else:
-            risk_lines = 'No high or medium-risk subject predictions found yet.'
-
-        reply = (
-            f'Hi {name}, your current overall risk level is {str(student_row["risk_level"]).upper()}.\n'
-            f'Performance Index: {round(float(student_row["performance_index"]))}%\n\n'
-            f'{risk_lines}'
+    try:
+        res = requests.post(
+            "http://127.0.0.1:8000/chat",
+            json={
+                "message": msg,
+                "system_prompt": f"You are ScholarAI, a helpful academic assistant for student {name}. Give clear, helpful, short answers."
+            },
+            timeout=60
         )
 
-    elif 'trend' in msg_lower:
-        rows = fetch_all("""
-            SELECT
-                subject_name_snapshot AS subject_name,
-                trend_label
-            FROM predictions
-            WHERE student_id = :sid
-            ORDER BY created_at DESC
-        """, {"sid": sid})
+        data = res.json()
 
-        if rows:
-            improving = [r["subject_name"] for r in rows if r["trend_label"] and "Improving" in r["trend_label"]]
-            declining = [r["subject_name"] for r in rows if r["trend_label"] and "Declining" in r["trend_label"]]
-            stable = [r["subject_name"] for r in rows if r["trend_label"] and "Stable" in r["trend_label"]]
-
-            reply = (
-                f'Your trend analysis:\n'
-                f'↑ Improving: {", ".join(improving) if improving else "None"}\n'
-                f'↓ Declining: {", ".join(declining) if declining else "None"}\n'
-                f'→ Stable: {", ".join(stable) if stable else "None"}\n\n'
-                f'Focus first on the declining subjects.'
-            )
+        if not res.ok:
+            reply = data.get('detail', 'FastAPI request failed.')
         else:
-            reply = 'No trend data found yet. Run a prediction first so I can analyze your progress.'
+            reply = data.get('reply', 'No response from AI.')
 
-    elif 'pi' in msg_lower or 'performance' in msg_lower:
-        pi_row = fetch_one("""
-            SELECT NVL(performance_index, 0) AS performance_index
-            FROM students
-            WHERE student_id = :sid
-        """, {"sid": sid})
-
-        reply = (
-            f'Your Performance Index is stored from your student profile and academic records.\n'
-            f'Your current PI: {round(float(pi_row["performance_index"]))}%\n\n'
-            f'To improve it, raise subject scores and maintain strong attendance.'
-        )
-
-    else:
-        reply = f'Let me check your academic profile for: "{msg}". Analyzing your records...'
+    except Exception as e:
+        reply = f'Connection error: {str(e)}'
 
     execute_dml("""
         INSERT INTO chat_messages (session_id, sender_type, message_text)

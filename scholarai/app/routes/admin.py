@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from app.db import fetch_one, fetch_all, execute_dml
+from app.ai_service import generate_ai_recommendation
 import csv
 import io
+import requests as http_requests
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -491,6 +493,22 @@ def run_prediction():
     grade = get_grade(predicted_score)
     prediction_id = _next_prediction_id()
 
+    # ── AI-generated recommendation ──
+    ai_recommendation = generate_ai_recommendation(
+        student_name=student["full_name"],
+        subject_name=subject_name,
+        risk_level=final_risk,
+        trend=trend,
+        predicted_score=predicted_score,
+        attendance_rate=attendance_rate,
+        term1_score=term1_score,
+        term2_score=term2_score,
+        term3_score=term3_score,
+        complaint_count=complaint_count,
+        due_amount=due_amount,
+        audience="admin",
+    )
+
     execute_dml("""
         INSERT INTO predictions (
             prediction_id,
@@ -564,7 +582,7 @@ def run_prediction():
         "grade": grade,
         "performance_index_label": "Generated",
         "confidence_score": 82,
-        "ai_recommendation": f"Generated for {subject_name}",
+        "ai_recommendation": ai_recommendation,
         "admin_id": session.get("admin_id")
     })
 
@@ -754,55 +772,25 @@ def chatbot_send():
         "message_text": msg
     })
 
-    msg_lower = msg.lower()
+    try:
+        res = http_requests.post(
+            "http://127.0.0.1:8000/chat",
+            json={
+                "message": msg,
+                "system_prompt": "You are ScholarAI Admin Assistant, an expert AI for school administrators. Help with student risk analysis, performance summaries, attendance insights, and academic recommendations. Be concise and data-focused."
+            },
+            timeout=60
+        )
 
-    if 'high risk' in msg_lower:
-        count_row = fetch_one("""
-            SELECT COUNT(*) AS total_high_risk
-            FROM students
-            WHERE risk_level = 'high'
-        """)
-        top_rows = fetch_all("""
-            SELECT full_name, performance_index
-            FROM students
-            WHERE risk_level = 'high'
-            ORDER BY performance_index ASC, full_name ASC
-            FETCH FIRST 3 ROWS ONLY
-        """)
-        top_text = ', '.join(
-            [f'{r["full_name"]} (PI:{r["performance_index"]}%)' for r in top_rows]
-        ) or 'No students found.'
-        reply = f'{count_row["total_high_risk"]} students are currently HIGH RISK. Top 3: {top_text}. Shall I draft emails?'
+        data = res.json()
 
-    elif 'attendance' in msg_lower:
-        class_row = fetch_one("""
-            SELECT
-                class_level,
-                section,
-                ROUND(AVG(attendance_rate), 2) AS avg_att
-            FROM students
-            GROUP BY class_level, section
-            ORDER BY avg_att ASC
-            FETCH FIRST 1 ROWS ONLY
-        """)
-
-        low_row = fetch_one("""
-            SELECT COUNT(*) AS low_count
-            FROM students
-            WHERE attendance_rate < 75
-        """)
-
-        if class_row:
-            reply = (
-                f'{class_row["class_level"]} Section {class_row["section"]} '
-                f'has the lowest average attendance at {class_row["avg_att"]}%. '
-                f'{low_row["low_count"]} students are below the 75% threshold.'
-            )
+        if not res.ok:
+            reply = data.get('detail', 'FastAPI request failed.')
         else:
-            reply = 'No attendance data found.'
+            reply = data.get('reply', 'No response from AI.')
 
-    else:
-        reply = f'I received: "{msg}". Analyzing student database and prediction models...'
+    except Exception as e:
+        reply = f'Connection error: {str(e)}'
 
     execute_dml("""
         INSERT INTO chat_messages (session_id, sender_type, message_text)

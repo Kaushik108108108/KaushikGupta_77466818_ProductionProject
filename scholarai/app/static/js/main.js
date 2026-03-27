@@ -14,46 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const chatMessages = document.getElementById('chatMessages');
   const chatSendBtn = document.getElementById('chatSend');
 
-  if (chatInput && chatMessages) {
-    const role = document.body.dataset.role || 'admin';
-
-    function appendMessage(text, sender) {
-      const msgDiv = document.createElement('div');
-      msgDiv.className = `chat-msg ${sender}`;
-      if (sender === 'bot') {
-        msgDiv.innerHTML = `
-          <div class="chat-msg__avatar ${role}">${role === 'admin' ? 'AI' : 'AI'}</div>
-          <div class="chat-msg__bubble">${text.replace(/\n/g, '<br>')}</div>`;
-      } else {
-        msgDiv.innerHTML = `<div class="chat-msg__bubble">${text}</div>`;
-      }
-      chatMessages.appendChild(msgDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function sendMessage() {
-      const text = chatInput.value.trim();
-      if (!text) return;
-      appendMessage(text, 'user');
-      chatInput.value = '';
-      setTimeout(() => {
-        appendMessage('Thank you for your question. I am analyzing the student database and prediction models to provide a detailed answer. Please wait a moment...', 'bot');
-      }, 600);
-    }
-
-    if (chatSendBtn) chatSendBtn.addEventListener('click', sendMessage);
-    chatInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') sendMessage();
-    });
-
-    // Quick prompt chips
-    document.querySelectorAll('.chat-prompt-item').forEach(chip => {
-      chip.addEventListener('click', function () {
-        chatInput.value = this.textContent.trim();
-        chatInput.focus();
-      });
-    });
-  }
+  // Chat functionality is handled by chatbot.js (loaded separately per page)
 
   /* ── FILTER SELECTS ── */
   const applyBtn = document.getElementById('applyFilter');
