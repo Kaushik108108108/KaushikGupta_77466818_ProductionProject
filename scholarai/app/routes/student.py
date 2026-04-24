@@ -539,12 +539,18 @@ def chatbot():
 
     chat_session = fetch_all("""
         SELECT
-            session_id,
-            session_label
-        FROM chat_sessions
-        WHERE owner_role = 'STUDENT'
-          AND student_id = :sid
-        ORDER BY created_at DESC
+            cs.session_id,
+            cs.session_label,
+            TO_CHAR(cs.created_at, 'DD Mon, HH24:MI') AS session_date,
+            (SELECT SUBSTR(cm.message_text, 1, 40)
+             FROM chat_messages cm
+             WHERE cm.session_id = cs.session_id AND cm.sender_type = 'USER'
+             ORDER BY cm.message_id ASC
+             FETCH FIRST 1 ROWS ONLY) AS topic
+        FROM chat_sessions cs
+        WHERE cs.owner_role = 'STUDENT'
+          AND cs.student_id = :sid
+        ORDER BY cs.created_at DESC
         FETCH FIRST 20 ROWS ONLY
     """, {"sid": sid})
 
@@ -556,6 +562,21 @@ def chatbot():
         active_messages=active_messages,
         active_session_id=active_session['session_id'] if active_session else None
     )
+
+
+@student_bp.route('/chatbot/delete/<session_id>')
+@student_required
+def delete_chat_session(session_id):
+    sid = session.get('student_id')
+    # Delete messages first (child rows), then the session
+    execute_dml("""
+        DELETE FROM chat_messages WHERE session_id = :sid
+    """, {"sid": session_id})
+    execute_dml("""
+        DELETE FROM chat_sessions 
+        WHERE session_id = :sid AND owner_role = 'STUDENT' AND student_id = :student_id
+    """, {"sid": session_id, "student_id": sid})
+    return redirect(url_for('student.chatbot'))
 
 
 @student_bp.route('/chatbot/send', methods=['POST'])
