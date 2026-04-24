@@ -1,89 +1,256 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ScholarAI — Send Email</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <style>
+    #sendEmailBtn.sent-state {
+      background: var(--green, #22c55e) !important;
+      border-color: var(--green, #22c55e) !important;
+      cursor: default;
+    }
+  </style>
 </head>
+
 <body data-role="admin">
-{% set active = 'students' %}{% include 'shared/nav_admin.html' with context %}
-<div class="page" style="max-width:760px;">
-  <div class="breadcrumb">
-    <a href="{{ url_for('admin.dashboard') }}">DASHBOARD</a>
-    <span class="breadcrumb__sep">›</span>
-    <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}">{{ student.student_id }}</a>
-    <span class="breadcrumb__sep">›</span>
-    <span class="breadcrumb__current">SEND EMAIL</span>
-    <div class="breadcrumb__actions">
-      <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}"><button class="btn btn-ghost sm">← BACK</button></a>
+  {% set active = 'students' %}{% include 'shared/nav_admin.html' with context %}
+  <div class="page">
+    <div class="breadcrumb">
+      <a href="{{ url_for('admin.dashboard') }}">DASHBOARD</a>
+      <span class="breadcrumb__sep">›</span>
+      <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}">{{ student.student_id }}</a>
+      <span class="breadcrumb__sep">›</span>
+      <span class="breadcrumb__current">SEND EMAIL</span>
+      <div class="breadcrumb__actions">
+        <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}"><button
+            class="btn btn-ghost sm">← BACK</button></a>
+      </div>
     </div>
-  </div>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in messages %}
-      <div class="alert {% if cat=='success' %}success{% else %}danger{% endif %}" style="margin-bottom:16px;">
-        <span class="alert__icon">{% if cat=='success' %}✓{% else %}⚠{% endif %}</span>
+    <div class="toast-container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="alert {% if cat=='success' %}success{% else %}danger{% endif %}" id="toastMsg">
+        <span class="alert__icon">
+          {% if cat=='success' %}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 2L11 13"></path>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          {% else %}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          {% endif %}
+        </span>
         <div class="alert__text">{{ msg }}</div>
+        <button class="btn btn-ghost sm"
+          style="border:none; padding:4px; height:auto; color:inherit; opacity:0.6; display:flex; align-items:center;"
+          onclick="this.parentElement.remove()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
-    {% endfor %}
-  {% endwith %}
-
-  <div class="info-band mb-20">
-    <div class="info-band__item"><div class="info-band__label">Student</div><div class="info-band__value">{{ student.full_name }} ({{ student.student_id }})</div></div>
-    <div class="info-band__item"><div class="info-band__label">Risk Level</div><div class="info-band__value text-red">{{ student.risk_level|upper }} RISK</div></div>
-    <div class="info-band__item"><div class="info-band__label">PI Score</div><div class="info-band__value text-amber">{{ student.performance_index }}%</div></div>
-    <div class="info-band__item"><div class="info-band__label">Dues</div><div class="info-band__value {% if student.due_amount > 0 %}text-red{% else %}text-green{% endif %}">₹{{ "{:,}".format(student.due_amount) }}</div></div>
-    <div class="info-band__item"><div class="info-band__label">Attendance</div><div class="info-band__value {% if student.attendance_rate < 75 %}text-red{% else %}text-green{% endif %}">{{ student.attendance_rate }}%</div></div>
-  </div>
-
-  <div class="card mb-0">
-    <div class="section-head">
-      <div class="section-head__left"><div class="section-head__bar"></div><span class="section-head__title">Compose Email</span></div>
+      {% endfor %}
+      {% endwith %}
     </div>
-    <form method="POST" style="display:flex;flex-direction:column;gap:18px;">
-      <div class="grid grid-2">
-        <div class="form-group">
-          <label class="form-label">Recipient (Student)</label>
-          <input type="email" name="to_email" class="form-control" value="{{ student.full_name.lower().replace(' ','.') }}@school.edu" readonly/>
+
+    <script>
+      // Auto-dismiss toast after 5 seconds
+      document.addEventListener('DOMContentLoaded', function () {
+        const toast = document.getElementById('toastMsg');
+        if (toast) {
+          setTimeout(() => {
+            toast.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(20px)';
+            setTimeout(() => toast.remove(), 500);
+          }, 5000);
+        }
+      });
+    </script>
+
+    <div class="info-band mb-20">
+      <div class="info-band__item">
+        <div class="info-band__label">Student</div>
+        <div class="info-band__value">{{ student.full_name }} ({{ student.student_id }})</div>
+      </div>
+      <div class="info-band__item">
+        <div class="info-band__label">Risk Level</div>
+        <div class="info-band__value text-red">{{ student.risk_level|upper }} RISK</div>
+      </div>
+      <div class="info-band__item">
+        <div class="info-band__label">PI Score</div>
+        <div class="info-band__value text-amber">{{ student.performance_index }}%</div>
+      </div>
+      <div class="info-band__item">
+        <div class="info-band__label">Dues</div>
+        <div class="info-band__value {% if student.due_amount > 0 %}text-red{% else %}text-green{% endif %}">₹{{
+          "{:,}".format(student.due_amount) }}</div>
+      </div>
+      <div class="info-band__item">
+        <div class="info-band__label">Attendance</div>
+        <div class="info-band__value {% if student.attendance_rate < 75 %}text-red{% else %}text-green{% endif %}">{{
+          student.attendance_rate }}%</div>
+      </div>
+    </div>
+
+    <div class="card mb-0">
+      <div class="section-head">
+        <div class="section-head__left">
+          <div class="section-head__bar"></div><span class="section-head__title">Compose Email</span>
+        </div>
+      </div>
+      <form method="POST" style="display:flex;flex-direction:column;gap:18px;">
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label">Recipient (Student)</label>
+            <input type="email" name="to_email" class="form-control" value="{{ student.email }}" readonly />
+          </div>
+          <div class="form-group">
+            <label class="form-label">CC — Sending To</label>
+            <select name="cc_email" class="form-control">
+              <option value="">No CC (Send only to student)</option>
+              {% if student.guardian_email %}
+              <option value="{{ student.guardian_email }}" selected>{{ student.guardian_email }} (Guardian)</option>
+              {% endif %}
+            </select>
+          </div>
         </div>
         <div class="form-group">
-          <label class="form-label">CC — Guardian Email</label>
-          <input type="email" name="cc_email" class="form-control" placeholder="guardian@example.com"/>
+          <label class="form-label">Email Template</label>
+          <select name="template" class="form-control" id="emailTemplate">
+            <option>Custom Message</option>
+            <option>High Risk Warning</option>
+            <option>Attendance Alert</option>
+            <option>Fee Dues Reminder</option>
+            <option>Performance Improvement Notice</option>
+            <option>Parent Meeting Request</option>
+          </select>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Email Template</label>
-        <select name="template" class="form-control" id="emailTemplate">
-          <option>Custom Message</option>
-          <option>High Risk Warning</option>
-          <option>Attendance Alert</option>
-          <option>Fee Dues Reminder</option>
-          <option>Performance Improvement Notice</option>
-          <option>Parent Meeting Request</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Subject</label>
-        <input type="text" name="subject" class="form-control" id="emailSubject" placeholder="e.g. Urgent: Academic Performance Concern"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Message Body</label>
-        <textarea name="body" class="form-control" id="emailBody" rows="8" style="resize:vertical;line-height:1.7;" placeholder="Compose your message..."></textarea>
-      </div>
-      <div class="flex-center gap-16" style="padding:12px 0;border-top:1px solid var(--border);">
-        <span class="form-label" style="margin-bottom:0;">PRIORITY:</span>
-        <label class="flex-center gap-8" style="font-size:13px;cursor:pointer;"><input type="radio" name="priority" value="normal"/> Normal</label>
-        <label class="flex-center gap-8" style="font-size:13px;cursor:pointer;"><input type="radio" name="priority" value="high" checked/> High</label>
-        <label class="flex-center gap-8" style="font-size:13px;cursor:pointer;"><input type="radio" name="priority" value="urgent"/> Urgent</label>
-      </div>
-      <div class="flex gap-8" style="justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border);">
-        <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}"><button type="button" class="btn btn-ghost">CANCEL</button></a>
-        <button type="button" class="btn btn-dark">SAVE AS DRAFT</button>
-        <button type="submit" class="btn btn-primary" id="sendEmailBtn">SEND EMAIL →</button>
-      </div>
-    </form>
+        <div class="form-group">
+          <label class="form-label">Subject</label>
+          <input type="text" name="subject" class="form-control" id="emailSubject"
+            placeholder="e.g. Urgent: Academic Performance Concern" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Message Body</label>
+          <textarea name="body" class="form-control" id="emailBody" rows="8" style="resize:vertical;line-height:1.7;"
+            placeholder="Compose your message..."></textarea>
+        </div>
+        <div class="flex-center gap-16" style="padding:12px 0;border-top:1px solid var(--border);">
+          <span class="form-label" style="margin-bottom:0;">PRIORITY:</span>
+          <label class="flex-center gap-8" style="font-size:13px;cursor:pointer;"><input type="radio" name="priority"
+              value="normal" /> Normal</label>
+          <label class="flex-center gap-8" style="font-size:13px;cursor:pointer;"><input type="radio" name="priority"
+              value="high" checked /> High</label>
+          <label class="flex-center gap-8" style="font-size:13px;cursor:pointer;"><input type="radio" name="priority"
+              value="urgent" /> Urgent</label>
+        </div>
+        <div class="flex gap-8" style="justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border);">
+          <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}"><button type="button"
+              class="btn btn-ghost">CANCEL</button></a>
+          <button type="submit" class="btn btn-primary" id="sendEmailBtn">📧 SEND EMAIL →</button>
+        </div>
+      </form>
+    </div>
   </div>
-</div>
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script>
+    window.studentData = {
+      full_name: "{{ student.full_name }}",
+      risk_level: "{{ student.risk_level|upper }}",
+      performance_index: "{{ student.performance_index }}",
+      due_amount: "{{ student.due_amount}}",
+      attendance_rate: "{{ student.attendance_rate }}",
+      guardian_email: "{{ student.guardian_email or '' }}"
+    };
+
+    function showToast(msg, isSuccess) {
+      const container = document.querySelector('.toast-container');
+      const toast = document.createElement('div');
+      toast.className = `alert ${isSuccess ? 'success' : 'danger'}`;
+      toast.innerHTML = `
+        <span class="alert__icon">
+            ${isSuccess
+          ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>'
+          : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>'
+        }
+        </span>
+        <div class="alert__text">${msg}</div>
+        <button class="btn btn-ghost sm" style="border:none; padding:4px; height:auto; color:inherit; opacity:0.6; display:flex; align-items:center;" onclick="this.parentElement.remove()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        setTimeout(() => toast.remove(), 500);
+      }, 5000);
+    }
+
+    // AJAX Form Submission
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.querySelector('form');
+      if (!form) return;
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('sendEmailBtn');
+        if (btn.disabled) return;
+
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '⏳ SENDING...';
+        btn.disabled = true;
+
+        const formData = new FormData(form);
+        fetch(window.location.href, {
+          method: 'POST',
+          body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json())
+        .then(data => {
+          showToast(data.message, data.success);
+          // Scroll to toast so user sees the result
+          const toastContainer = document.querySelector('.toast-container');
+          if (toastContainer) {
+            toastContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          if (data.success) {
+            btn.innerHTML = '✓ SENT';
+            btn.classList.add('sent-state');
+            // Keep disabled — email already sent
+          } else {
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+          }
+        })
+        .catch(err => {
+          showToast('An error occurred while sending.', false);
+          const toastContainer = document.querySelector('.toast-container');
+          if (toastContainer) {
+            toastContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          btn.innerHTML = originalHTML;
+          btn.disabled = false;
+        });
+      });
+    });
+  </script>
 </body>
+
 </html>

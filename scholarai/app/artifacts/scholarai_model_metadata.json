@@ -1,0 +1,20 @@
+{
+  "project": "ScholarAI",
+  "purpose": "Predict academic score for Flask predicted_score column",
+  "selected_model_name": "Bootstrap RandomForest demo",
+  "artifact_source": "bootstrap_synthetic_demo_replace_after_colab",
+  "website_features": [
+    "attendance_rate",
+    "term1_score",
+    "term2_score",
+    "term3_score",
+    "terminal_avg"
+  ],
+  "final_metrics": {
+    "display_confidence_pct": 81
+  },
+  "notes": [
+    "This bootstrap model was bundled to keep the Flask integration operational.",
+    "Replace it with the Colab-exported Kaggle-trained artifact for the final academic submission."
+  ]
+}

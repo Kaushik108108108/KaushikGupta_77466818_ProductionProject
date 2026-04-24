@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ScholarAI</title>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
   <style>
     body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--navy);}
     .hub{text-align:center;}
-    .hub__logo{width:64px;height:64px;background:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:22px;color:#fff;margin-bottom:20px;}
-    .hub__title{color:#fff;font-weight:800;font-size:32px;font-family:var(--mono);margin-bottom:8px;}
+    .hub__logo{width:220px;height:auto;margin-bottom:24px;display:inline-block;}
+    .hub__logo img{width:100%;height:auto;display:block;filter:drop-shadow(0 4px 20px rgba(37,99,235,0.4));}
     .hub__sub{color:var(--gray);font-size:14px;margin-bottom:48px;}
     .hub__cards{display:flex;gap:20px;justify-content:center;}
     .hub__card{width:270px;background:var(--navy-mid);border:1px solid var(--navy-lt);padding:32px 24px;text-decoration:none;display:block;transition:border-color 0.15s,transform 0.2s;text-align:left;}
@@ -25,12 +26,32 @@
     .hub__card.admin .hub__card-btn{background:var(--blue);color:#fff;}
     .hub__card.student .hub__card-btn{background:var(--blue);color:#fff;}
     .hub__footer{margin-top:40px;color:var(--gray);font-size:11px;font-family:var(--mono);}
+    
+    @media (max-width: 600px) {
+      .hub__cards {
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+      .hub__card {
+        width: 100%;
+        max-width: 300px;
+      }
+      .hub__logo {
+        width: 160px;
+        margin-bottom: 16px;
+      }
+      .hub__logo img {
+        filter: none; /* remove heavy shadow on mobile for performance */
+      }
+    }
   </style>
 </head>
 <body>
   <div class="hub">
-    <div class="hub__logo">SA</div>
-    <div class="hub__title">ScholarAI</div>
+    <div class="hub__logo">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="ScholarAI">
+    </div>
     <div class="hub__sub">Early Student Performance Prediction System</div>
     <div class="hub__cards">
       <a href="{{ url_for('auth.admin_login') }}" class="hub__card admin">

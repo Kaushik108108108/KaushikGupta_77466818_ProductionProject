@@ -3,14 +3,51 @@
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ScholarAI — Student Login</title>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <style>
+    /* ── TAB TOGGLE ── */
+    .auth-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      background: var(--navy-lt);
+      padding: 4px;
+      border-radius: 6px;
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 9px 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 4px;
+      color: var(--gray);
+      border: none;
+      background: transparent;
+      transition: background 0.2s, color 0.2s;
+    }
+    .auth-tab.active { background: var(--blue); color: #fff; }
+    .auth-panel { display: none; }
+    .auth-panel.active { display: block; }
+    .alert.success .alert__text strong { color: var(--green); }
+    /* Fix: ensure panel scrolls on small screens */
+    .login-wrap { height: 100vh; overflow: hidden; }
+    .login-panel-right { overflow-y: auto; height: 100%; justify-content: flex-start; padding-top: 40px; }
+    /* Compact register form */
+    #panel-register .login-form { gap: 10px; }
+  </style>
 </head>
 <body>
 <div class="login-wrap">
   <div class="login-panel-left student">
     <div class="login-brand">
-      <div class="login-logo student">SA</div>
-      <div class="login-appname student">ScholarAI</div>
+      <div class="login-logo student">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="ScholarAI">
+      </div>
     </div>
     <div class="login-headline">Track Your<br><span class="blue">Academic</span><br>Journey</div>
     <div class="login-sub">Submit your grades, get AI-powered predictions, personalised recommendations, and chat with your academic assistant.</div>
@@ -20,37 +57,182 @@
       <div class="login-stat"><div class="login-stat__val student">AI</div><div class="login-stat__lbl">Recommendations</div></div>
     </div>
   </div>
+
   <div class="login-panel-right student">
-    <div class="login-form-title student">Sign In</div>
-    <div class="login-form-sub student">Access your performance portal</div>
+    <div class="login-form-title student">Student Portal</div>
+    <div class="login-form-sub student">Access your performance dashboard</div>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
-        <div class="alert danger" style="margin-bottom:16px;border-left-color:var(--red);">
-          <span class="alert__icon">⚠</span><div class="alert__text">{{ msg }}</div>
+        <div class="alert {{ 'success' if cat == 'success' else 'danger' }}" style="margin-bottom:16px;">
+          <span class="alert__icon">{{ '✓' if cat == 'success' else '⚠' }}</span>
+          <div class="alert__text"><strong>{{ msg }}</strong></div>
         </div>
       {% endfor %}
     {% endwith %}
-    <form method="POST" class="login-form">
-      <div class="form-group">
-        <label class="form-label">Email Address</label>
-        <input type="email" name="email" class="form-control" placeholder="student@school.edu" required/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" name="password" class="form-control" placeholder="••••••••••" required/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Student ID</label>
-        <input type="text" name="student_id" class="form-control" placeholder="e.g. STU-001" required/>
-      </div>
-      <button type="submit" class="btn btn-primary full" style="padding:13px;font-size:14px;letter-spacing:0.05em;margin-top:8px;">SIGN IN TO PORTAL →</button>
-      <div class="login-forgot student">Forgot password? Contact your class teacher</div>
-      <div style="border-top:1px solid var(--border);padding-top:18px;text-align:center;">
-        <span class="fs-12 text-muted">Admin? </span>
-        <a href="{{ url_for('auth.admin_login') }}" style="font-size:12px;color:var(--blue);font-weight:600;">Admin Portal →</a>
-      </div>
-    </form>
+
+    <!-- Toggle Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab" id="tab-signin" onclick="switchTab('signin')">Sign In</button>
+      <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <div class="auth-panel" id="panel-signin">
+      <form method="POST" action="{{ url_for('auth.student_login') }}" class="login-form" autocomplete="off">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control dark" placeholder="" required autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-control dark" placeholder="" required autocomplete="new-password" />
+          <a href="{{ url_for('auth.forgot_password') }}" style="font-size: 11px; color: var(--gray); text-decoration: none; margin-top: 2px; text-align: right; display: block;">Forgot credentials?</a>
+        </div>
+        <button type="submit" class="btn btn-primary full" style="padding:13px;font-size:14px;letter-spacing:0.05em;margin-top:8px;">SIGN IN TO PORTAL →</button>
+        <div style="border-top:1px solid var(--border);padding-top:18px;text-align:center;">
+          <span class="fs-12 text-muted">Admin? </span>
+          <a href="{{ url_for('auth.admin_login') }}" style="font-size:12px;color:var(--blue);font-weight:600;">Admin Portal →</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="auth-panel" id="panel-register">
+      <form method="POST" action="{{ url_for('auth.student_register') }}" class="login-form">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" name="full_name" class="form-control dark" placeholder="Your full name" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control dark" placeholder="student@school.edu" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone Number</label>
+          <input type="text" name="phone_number" class="form-control dark" placeholder="Optional"/>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Class</label>
+            <select name="class_level" class="form-control dark" required>
+              <option value="" disabled selected>Select</option>
+              <option value="Class 10">Class 10</option>
+              <option value="Class 11">Class 11</option>
+              <option value="Class 12">Class 12</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Section</label>
+            <select name="section" class="form-control dark" required>
+              <option value="" disabled selected>Select</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="form-group">
+            <label class="form-label">Guardian Name</label>
+            <input type="text" name="guardian_name" class="form-control dark" placeholder="Optional"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Guardian Email</label>
+            <input type="email" name="guardian_email" class="form-control dark" placeholder="Optional"/>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" name="password" class="form-control dark" placeholder="Password" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <input type="password" name="confirm_password" class="form-control dark" placeholder="Repeat" required/>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary full" style="padding:11px;font-size:13px;letter-spacing:0.05em;margin-top:4px;">CREATE STUDENT ACCOUNT →</button>
+        <div style="border-top:1px solid var(--border);padding-top:12px;text-align:center;">
+          <span class="fs-12 text-muted">Already enrolled? </span>
+          <button type="button" onclick="switchTab('signin')" style="background:none;border:none;font-size:12px;color:var(--blue);font-weight:600;cursor:pointer;">Sign In →</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
+
+<script>
+  function switchTab(tab) {
+    document.getElementById('panel-signin').classList.remove('active');
+    document.getElementById('panel-register').classList.remove('active');
+    document.getElementById('tab-signin').classList.remove('active');
+    document.getElementById('tab-register').classList.remove('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+  }
+  const urlTab = new URLSearchParams(window.location.search).get('tab') || 'signin';
+  switchTab(urlTab);
+</script>
+  <script>
+  function showRtFlash(inputEl, msg) {
+    document.querySelectorAll('.rt-flash').forEach(e => e.remove());
+    if (msg) {
+      const alertHtml = `
+        <div class="alert danger rt-flash" style="margin-bottom:16px;">
+          <span class="alert__icon" style="font-size:14px; margin-right:6px;">⚠</span>
+          <div class="alert__text"><strong>${msg}</strong></div>
+        </div>
+      `;
+      const tabs = document.querySelector('.auth-tabs');
+      if (tabs) {
+        tabs.insertAdjacentHTML('afterend', alertHtml);
+      } else {
+        inputEl.parentNode.insertAdjacentHTML('afterbegin', alertHtml);
+      }
+    }
+  }
+
+  document.addEventListener('input', function(e) {
+    const inputEl = e.target;
+    if (!inputEl.form) return;
+    
+    const name = inputEl.name;
+    const val = inputEl.value;
+    if (!val) return showRtFlash(inputEl, null);
+    
+    if (name === 'full_name' || name === 'guardian_name') {
+      if (!/^[A-Za-z\s]+$/.test(val)) {
+        showRtFlash(inputEl, `Wrong input for ${name === 'full_name' ? 'Full Name' : 'Guardian Name'}. Correct version: Should only contain letters and spaces.`);
+      } else { showRtFlash(inputEl, null); }
+    } else if (name === 'phone_number' || name === 'phone') {
+      if (!/^\d*$/.test(val) || val.length > 10) {
+        showRtFlash(inputEl, `Wrong input for Phone Number. Correct version: Should contain exactly 10 digits.`);
+      } else { showRtFlash(inputEl, null); }
+    } else if (name === 'username') {
+      if (inputEl.closest('#panel-register')) {
+        if (!/^[A-Za-z0-9_]+$/.test(val)) {
+          showRtFlash(inputEl, `Wrong input for Username. Correct version: Should only contain letters, numbers, and underscores.`);
+        } else { showRtFlash(inputEl, null); }
+      }
+    }
+  });
+
+  document.addEventListener('focusout', function(e) {
+    const inputEl = e.target;
+    if (!inputEl.form) return;
+    const name = inputEl.name;
+    const val = inputEl.value;
+    
+    if (name === 'phone_number' || name === 'phone') {
+      if (val && val.length > 0 && val.length !== 10) {
+        showRtFlash(inputEl, `Wrong input for Phone Number. Correct version: Should contain exactly 10 digits.`);
+      }
+    } else if (name === 'full_name' || name === 'guardian_name') {
+      const parts = val.trim().split(/\s+/);
+      if (val && val.trim().length > 0 && parts.length < 2) {
+        showRtFlash(inputEl, `Wrong input for ${name === 'full_name' ? 'Full Name' : 'Guardian Name'}. Correct version: Please enter both first and last name.`);
+      }
+    }
+  });
+  </script>
 </body>
-</html>

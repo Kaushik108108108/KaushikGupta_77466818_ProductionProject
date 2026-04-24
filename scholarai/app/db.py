@@ -40,7 +40,13 @@ def fetch_one(sql, params=None):
         if row is None:
             return None
         columns = [col[0].lower() for col in cur.description]
-        return dict(zip(columns, row))
+        
+        # Handle LOB (Large Objects) which aren't JSON serializable
+        dict_row = dict(zip(columns, row))
+        for key, val in dict_row.items():
+            if hasattr(val, "read"):
+                dict_row[key] = val.read()
+        return dict_row
 
 def fetch_all(sql, params=None):
     conn = get_conn()
@@ -48,7 +54,16 @@ def fetch_all(sql, params=None):
         cur.execute(sql, params or {})
         rows = cur.fetchall()
         columns = [col[0].lower() for col in cur.description]
-        return [dict(zip(columns, row)) for row in rows]
+        
+        results = []
+        for row in rows:
+            dict_row = dict(zip(columns, row))
+            # Handle LOB (Large Objects) which aren't JSON serializable
+            for key, val in dict_row.items():
+                if hasattr(val, "read"):
+                    dict_row[key] = val.read()
+            results.append(dict_row)
+        return results
 
 def execute_dml(sql, params=None):
     conn = get_conn()

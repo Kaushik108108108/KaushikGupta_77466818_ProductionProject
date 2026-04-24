@@ -1,93 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ScholarAI — Student Details</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <style>
+    .fixed-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 30px;
+      padding: 20px;
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+    .modal-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .modal-full-width {
+      grid-column: span 2;
+    }
+  </style>
 </head>
+
 <body data-role="admin">
-{% set active = 'students' %}{% include 'shared/nav_admin.html' with context %}
-<div class="page">
+  {% set active = 'students' %}{% include 'shared/nav_admin.html' with context %}
+  <div class="page">
 
-  <div class="breadcrumb">
-    <a href="{{ url_for('admin.dashboard') }}">DASHBOARD</a>
-    <span class="breadcrumb__sep">›</span>
-    <span class="breadcrumb__current">{{ student.student_id }} — {{ student.full_name|upper }}</span>
-    <div class="breadcrumb__actions">
-      <form method="GET" action="{{ url_for('admin.student_details', student_id=student.student_id) }}" style="display:flex;gap:0;">
-        <input type="text" name="q" value="{{ search_query|default('') }}"
-          placeholder="Search student by name or ID..."
-          style="padding:6px 12px;border:1px solid var(--border);border-right:none;font-size:12px;font-family:var(--font);width:220px;outline:none;"/>
-        <button type="submit" class="btn btn-primary sm">🔍 SEARCH</button>
-      </form>
-      <a href="{{ url_for('admin.dashboard') }}"><button class="btn btn-ghost sm">← BACK</button></a>
-      <a href="{{ url_for('admin.send_email', student_id=student.student_id) }}"><button class="btn btn-primary sm">📧 SEND EMAIL</button></a>
-      <button class="btn btn-dark sm">📄 EXPORT PDF</button>
+    <div class="breadcrumb">
+      <a href="{{ url_for('admin.dashboard') }}">DASHBOARD</a>
+      <span class="breadcrumb__sep">›</span>
+      <span class="breadcrumb__current">{{ student.student_id }} — {{ student.full_name|upper }}</span>
+      <div class="breadcrumb__actions">
+        <form method="GET" action="{{ url_for('admin.student_details', student_id=student.student_id) }}"
+          class="breadcrumb__search">
+          <input type="text" name="q" value="{{ search_query|default('') }}"
+            placeholder="Search student by name or ID..." required />
+          <button type="submit" class="btn btn-primary sm">🔍 SEARCH</button>
+        </form>
+        <a href="{{ url_for('admin.dashboard') }}"><button class="btn btn-ghost sm">← BACK</button></a>
+        <a href="{{ url_for('admin.send_email', student_id=student.student_id) }}"><button class="btn btn-primary sm">📧
+            SEND EMAIL</button></a>
+        <button class="btn btn-dark sm" onclick="window.print()">📄 EXPORT PDF</button>
+      </div>
     </div>
-  </div>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
-      <div class="alert danger" style="margin-bottom:16px;">
-        <span class="alert__icon">⚠</span>
-        <div class="alert__text">{{ msg }}</div>
-      </div>
+    <div class="alert {% if cat == 'success' %}success{% else %}danger{% endif %}" style="margin-bottom:16px;">
+      <span class="alert__icon">{% if cat == 'success' %}✓{% else %}⚠{% endif %}</span>
+      <div class="alert__text">{{ msg }}</div>
+    </div>
     {% endfor %}
-  {% endwith %}
+    {% endwith %}
 
-  <div class="detail-info-row layout mb-20">
-    <div class="detail-box navy-bg">
-      <div class="detail-box__label">Student Information</div>
-      <div class="detail-box__name">{{ student.full_name|upper }}</div>
-      <div class="detail-box__meta">
-        <span class="detail-box__meta-key">ID</span>       <span class="detail-box__meta-val">{{ student.student_id }}</span>
-        <span class="detail-box__meta-key">Class</span>    <span class="detail-box__meta-val">{{ student.class_level }}</span>
-        <span class="detail-box__meta-key">Section</span>  <span class="detail-box__meta-val">{{ student.section }}</span>
-        <span class="detail-box__meta-key">Guardian</span> <span class="detail-box__meta-val">{{ student.guardian_name }}</span>
-        <span class="detail-box__meta-key">Email</span>    <span class="detail-box__meta-val">{{ student.email }}</span>
-        <span class="detail-box__meta-key">Phone</span>    <span class="detail-box__meta-val">{{ student.phone_number }}</span>
-      </div>
-    </div>
-    <div class="detail-box amber-top text-center">
-      <div class="detail-box__label">Performance Index</div>
-      <span class="detail-box__big amber">{{ student.performance_index }}%</span>
-      <div class="detail-box__big-sub">School avg: 84%</div>
-    </div>
-    <div class="detail-box {% if student.risk_level=='low' %}green-top{% elif student.risk_level=='medium' %}amber-top{% else %}red-top{% endif %} text-center">
-      <div class="detail-box__label" style="color:var(--text-lt);">Risk Level</div>
-      <div style="font-size:28px;font-weight:800;font-family:var(--mono);margin:14px 0 8px;color:{% if student.risk_level=='low' %}var(--green){% elif student.risk_level=='medium' %}var(--amber){% else %}var(--red){% endif %};">{{ student.risk_level|upper }}</div>
-      <div class="detail-box__big-sub">AI Confidence: {{ student.confidence_score }}%</div>
-    </div>
-    <div class="detail-box {% if student.due_amount == 0 %}green-top{% else %}red-top2{% endif %} text-center">
-      <div class="detail-box__label">Outstanding Dues</div>
-      <span class="detail-box__big {% if student.due_amount == 0 %}green{% else %}red{% endif %}">₹{{ "{:,}".format(student.due_amount) }}</span>
-      <div class="detail-box__big-sub">{{ student.complaint|length }} complaint(s) on record</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="section-head">
-      <div class="section-head__left"><div class="section-head__bar"></div><span class="section-head__title">Behavior &amp; Complaint History</span></div>
-      <div class="section-head__actions"><button class="btn btn-amber sm">+ LOG COMPLAINT</button></div>
-    </div>
-    <div class="flex gap-12">
-      {% for c in student.complaint %}
-      <div class="behavior-card">
-        <div class="behavior-card__head">
-          <span class="behavior-card__type">{{ c.complaint_type }}</span>
-          <span class="behavior-card__date">{{ c.recorded_at }}</span>
+    <div class="detail-info-row layout mb-20">
+      <div class="detail-box navy-bg">
+        <div class="detail-box__label">Student Information</div>
+        <div class="detail-box__name">{{ student.full_name|upper }}</div>
+        <div class="detail-box__meta">
+          <span class="detail-box__meta-key">ID</span> <span class="detail-box__meta-val mono">{{ student.student_id
+            }}</span>
+          <span class="detail-box__meta-key">Class</span> <span class="detail-box__meta-val">{{ student.class_level
+            }}</span>
+          <span class="detail-box__meta-key">Section</span> <span class="detail-box__meta-val">{{ student.section
+            }}</span>
+          <span class="detail-box__meta-key">Guardian</span> <span class="detail-box__meta-val">{{ student.guardian_name
+            }}</span>
+          <span class="detail-box__meta-key">Email</span> <span class="detail-box__meta-val">{{ student.email }}</span>
+          <span class="detail-box__meta-key">Phone</span> <span class="detail-box__meta-val">{{ student.phone_number
+            }}</span>
         </div>
-        <div class="behavior-card__note">{{ c.description }}</div>
-        <div class="behavior-card__sev">SEVERITY: {{ c.severity }}</div>
       </div>
-      {% endfor %}
-      {% if student.complaint|length == 0 %}
-      <div style="flex:1;background:var(--green-lt);border:1px dashed var(--green);padding:20px;display:flex;align-items:center;justify-content:center;color:var(--green);font-weight:600;font-size:13px;">
-        ✓ No complaints on record
+      <div class="detail-box amber-top text-center">
+        <div class="detail-box__label">Performance Index</div>
+        <span class="detail-box__big amber">{{ student.performance_index }}%</span>
+        <div class="detail-box__big-sub">School avg: {{ school_avg }}%</div>
       </div>
-      {% elif student.complaint|length < 3 %}
-      <div style="flex:1;background:var(--green-lt);border:1px dashed var(--green);padding:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--green);font-weight:600;font-size:13px;">
-        + Log a new complaint record
+      <div
+        class="detail-box {% if student.risk_level=='low' %}green-top{% elif student.risk_level=='medium' %}amber-top{% else %}red-top{% endif %} text-center">
+        <div class="detail-box__label">Risk Level</div>
+        <div
+          class="detail-box__big {% if student.risk_level=='low' %}green{% elif student.risk_level=='medium' %}amber{% else %}red{% endif %}">
+          {{ student.risk_level|upper }}</div>
+        <div class="detail-box__big-sub">AI Confidence: {{ student.confidence_score }}%</div>
+      </div>
+      <div class="detail-box {% if student.due_amount == 0 %}green-top{% else %}red-top2{% endif %} text-center">
+        <div class="detail-box__label">Outstanding Dues</div>
+        <span class="detail-box__big {% if student.due_amount == 0 %}green{% else %}red{% endif %}">₹{{
+          "{:,}".format(student.due_amount) }}</span>
+        <div class="detail-box__big-sub">{{ student.complaint|length }} complaint(s) on record</div>
+        {% if student.due_amount > 0 %}
+        <div style="margin-top:12px;">
+          <form action="{{ url_for('admin.clear_dues', student_id=student.student_id) }}" method="POST"
+            onsubmit="return confirm('Are you sure you want to clear all outstanding dues for this student?')">
+            <button type="submit" class="btn btn-primary sm"
+              style="background:var(--blue);border:none;padding:5px 12px;font-size:11px;">✓ CLEAR DUE</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- BEHAVIOR & COMPLAINT BAR -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-head__left">
+          <div class="section-head__bar"></div><span class="section-head__title">Behavior &amp; Complaint History</span>
+        </div>
+        <div class="section-head__actions" style="display:flex;gap:8px;">
+          <button class="btn btn-ghost sm"
+            onclick="document.getElementById('resolveComplaintModal').style.display='flex'">
+            <span style="margin-right:4px;">✓</span> RESOLVE COMPLAINTS
+          </button>
+          <button class="btn btn-amber sm" onclick="document.getElementById('complaintModal').style.display='flex'">+
+            LOG COMPLAINT</button>
+        </div>
+      </div>
+      <div class="flex gap-12 scroll-x">
+        {% set open_complaints = [] %}
+        {% for c in student.complaint %}
+        {% if c.status == 'OPEN' %}
+        {% set _ = open_complaints.append(c) %}
+        <div class="behavior-card">
+          <div class="behavior-card__head">
+            <span class="behavior-card__type">{{ c.complaint_type }}</span>
+            <span class="behavior-card__date">{{ c.recorded_at }}</span>
+          </div>
+          <div class="behavior-card__note">{{ c.description }}</div>
+          <div class="behavior-card__sev">SEVERITY: {{ c.severity }}</div>
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% if open_complaints|length == 0 %}
+        <div
+          style="flex:0 0 300px;background:var(--green-lt);border:1px dashed var(--green);padding:20px;display:flex;align-items:center;justify-content:center;color:var(--green);font-weight:600;font-size:13px;min-height:100px;">
+          ✓ No active complaints
+        </div>
+        {% elif open_complaints|length < 3 %} <div
+          onclick="document.getElementById('complaintModal').style.display='flex'"
+          style="flex:0 0 300px;background:var(--green-lt);border:1px dashed var(--green);padding:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--green);font-weight:600;font-size:13px;min-height:100px;">
+          + Log a new record
       </div>
       {% endif %}
     </div>
@@ -95,37 +153,329 @@
 
   <div class="card mb-0">
     <div class="section-head">
-      <div class="section-head__left"><div class="section-head__bar"></div><span class="section-head__title">Detailed Subject Results — {{ student.academic_record|length }} Subjects</span></div>
+      <div class="section-head__left">
+        <div class="section-head__bar"></div><span class="section-head__title">Detailed Subject Results — {{
+          student.academic_record|length }} Subjects</span>
+      </div>
     </div>
-    <table class="data-table">
+    <div class="table-responsive">
+      <table class="data-table">
       <thead>
-        <tr><th>Subject</th><th>Attendance</th><th>Term 1</th><th>Term 2</th><th>Term 3</th><th>Predicted Score</th><th>Trend</th><th>AI Recommendation</th></tr>
+        <tr>
+          <th>Subject</th>
+          <th>Attendance</th>
+          <th>Term 1</th>
+          <th>Term 2</th>
+          <th>Term 3</th>
+          <th>Predicted Score</th>
+          <th>Trend</th>
+          <th>AI Recommendation</th>
+        </tr>
       </thead>
       <tbody>
         {% for sub in student.academic_record %}
-        <tr {% if sub.predicted_score < 60 %}class="high-risk"{% endif %}>
+        <tr {% if sub.predicted_score < 60 %}class="high-risk" {% endif %}>
           <td><strong>{{ sub.subject_name }}</strong></td>
           <td>
             <div class="flex-center gap-8">
-              <div class="progress"><div class="progress__fill {% if sub.attendance_rate < 75 %}red{% else %}green{% endif %}" style="width:{{ sub.attendance_rate }}%"></div></div>
-              <span class="mono fw-700 {% if sub.attendance_rate < 75 %}text-red{% else %}text-green{% endif %}">{{ sub.attendance_rate }}%</span>
+              <div class="progress">
+                <div class="progress__fill {% if sub.attendance_rate < 75 %}red{% else %}green{% endif %}"
+                  style="width:{{ sub.attendance_rate }}%"></div>
+              </div>
+              <span class="mono fw-700 {% if sub.attendance_rate < 75 %}text-red{% else %}text-green{% endif %}">{{
+                sub.attendance_rate }}%</span>
             </div>
           </td>
           <td class="mono">{{ sub.term1_score }}</td>
           <td class="mono">{{ sub.term2_score }}</td>
           <td class="mono">{{ sub.term3_score }}</td>
-          <td><span class="mono fw-800 {% if sub.predicted_score < 60 %}text-red{% elif sub.predicted_score < 75 %}text-amber{% else %}text-green{% endif %}">{{ sub.predicted_score }}</span></td>
+          <td><span
+              class="mono fw-800 {% if sub.predicted_score < 60 %}text-red{% elif sub.predicted_score < 75 %}text-amber{% else %}text-green{% endif %}">{{
+              sub.predicted_score }}</span></td>
           <td>
-            {% if sub.predicted_score > sub.term3_score %}<span class="trend-up">▲ {{ sub.predicted_score - sub.term3_score }}</span>
+            {% if sub.predicted_score > sub.term3_score %}<span class="trend-up">▲ {{ sub.predicted_score -
+              sub.term3_score }}</span>
             {% else %}<span class="trend-down">▼ {{ sub.term3_score - sub.predicted_score }}</span>{% endif %}
           </td>
           <td class="text-muted fs-12">{{ sub.ai_recommendation }}</td>
         </tr>
         {% endfor %}
       </tbody>
-    </table>
+      </table>
+    </div>
   </div>
-</div>
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+  <!-- ACTION BUTTONS -->
+  <div class="fixed-actions">
+    <button class="btn btn-primary sm" onclick="openUpdateModal()">✎ UPDATE DETAILS</button>
+    <form action="{{ url_for('admin.delete_student', student_id=student.student_id) }}" method="POST" id="deleteForm" style="display:inline;">
+      <button type="button" class="btn btn-danger sm" onclick="confirmDelete()">🗑 DELETE STUDENT</button>
+    </form>
+  </div>
+  </div>
+
+  <!-- LOG COMPLAINT MODAL -->
+  <div id="complaintModal"
+    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+    <div class="card"
+      style="width:500px;max-width:90%;margin:0;box-shadow:var(--shadow-lg);border:1px solid var(--border);">
+      <div class="section-head" style="margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;">
+        <div class="section-head__left">
+          <div class="section-head__bar" style="background:var(--amber);"></div>
+          <span class="section-head__title">Log New Complaint — {{ student.student_id }}</span>
+        </div>
+        <button onclick="document.getElementById('complaintModal').style.display='none'"
+          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">✕</button>
+      </div>
+
+      <form action="{{ url_for('admin.log_complaint', student_id=student.student_id) }}" method="POST">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div>
+            <label
+              style="display:block;font-size:11px;font-weight:700;color:var(--text-lt);margin-bottom:6px;text-transform:uppercase;">Complaint
+              Type</label>
+            <select name="complaint_type" required
+              style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:13px;outline:none;background:var(--card-bg);color:var(--text); transition:border-color 0.2s;">
+              <option value="DISCIPLINARY">Disciplinary</option>
+              <option value="ACADEMIC">Academic</option>
+              <option value="ATTENDANCE">Attendance</option>
+              <option value="FINANCIAL">Financial</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div>
+            <label
+              style="display:block;font-size:11px;font-weight:700;color:var(--text-lt);margin-bottom:6px;text-transform:uppercase;">Severity
+              Level</label>
+            <select name="severity" required
+              style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:13px;outline:none;background:var(--card-bg);color:var(--text); transition:border-color 0.2s;">
+              <option value="LOW" style="color:var(--green);">Low</option>
+              <option value="MEDIUM" style="color:var(--amber);">Medium</option>
+              <option value="HIGH" style="color:var(--red);">High</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label
+            style="display:block;font-size:11px;font-weight:700;color:var(--text-lt);margin-bottom:6px;text-transform:uppercase;">Detailed
+            Description</label>
+          <textarea name="description" required placeholder="Describe the incident or reason for the complaint..."
+            style="width:100%;height:120px;padding:10px 12px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:13px;outline:none;resize:none;background:var(--card-bg);color:var(--text); transition:border-color 0.2s;"></textarea>
+        </div>
+
+        <div
+          style="display:flex;justify-content:flex-end;gap:12px;padding-top:16px;border-top:1px solid var(--border);">
+          <button type="button" onclick="document.getElementById('complaintModal').style.display='none'"
+            class="btn btn-ghost">CANCEL</button>
+          <button type="submit" class="btn btn-amber">SUBMIT COMPLAINT</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- RESOLVE COMPLAINTS MODAL -->
+  <div id="resolveComplaintModal"
+    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+    <div class="card"
+      style="width:600px;max-width:95%;margin:0;box-shadow:var(--shadow-lg);border:1px solid var(--border);max-height:80vh;display:flex;flex-direction:column;">
+      <div class="section-head"
+        style="margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;flex-shrink:0;">
+        <div class="section-head__left">
+          <div class="section-head__bar" style="background:var(--green);"></div>
+          <span class="section-head__title">Resolve Complaints — {{ student.student_id }}</span>
+        </div>
+        <button onclick="document.getElementById('resolveComplaintModal').style.display='none'"
+          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">✕</button>
+      </div>
+
+      <div style="overflow-y:auto;flex-grow:1;padding-right:8px;">
+        {% set has_open = false %}
+        <div class="table-responsive">
+          <table class="data-table" style="font-size:13px;">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Date</th>
+              <th>Severity</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in student.complaint %}
+            {% if c.status == 'OPEN' %}
+            {% set has_open = true %}
+            <tr>
+              <td><strong>{{ c.complaint_type }}</strong></td>
+              <td class="text-muted">{{ c.recorded_at }}</td>
+              <td><span
+                  class="badge {% if c.severity == 'HIGH' %}bg-red{% elif c.severity == 'MEDIUM' %}bg-amber{% else %}bg-green{% endif %}"
+                  style="padding:2px 8px;border-radius:4px;color:#fff;font-size:10px;">{{ c.severity }}</span></td>
+              <td>
+                <form
+                  action="{{ url_for('admin.resolve_complaint', student_id=student.student_id, complaint_id=c.complaint_id) }}"
+                  method="POST" style="margin:0;" onsubmit="return confirm('Mark this complaint as resolved?')">
+                  <button type="submit" class="btn btn-primary sm"
+                    style="background:var(--green);border:none;padding:4px 10px;font-size:11px;">✓ RESOLVE</button>
+                </form>
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            {% if not has_open %}
+            <tr>
+              <td colspan="4" style="text-align:center;padding:30px;color:var(--text-lt);">No active complaints to
+                resolve.</td>
+            </tr>
+            {% endif %}
+          </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div
+        style="display:flex;justify-content:flex-end;gap:12px;padding-top:16px;border-top:1px solid var(--border);margin-top:20px;flex-shrink:0;">
+        <button type="button" onclick="document.getElementById('resolveComplaintModal').style.display='none'"
+          class="btn btn-ghost">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPDATE STUDENT MODAL -->
+  <div id="updateStudentModal"
+    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+    <div class="card"
+      style="width:700px;max-width:95%;margin:0;box-shadow:var(--shadow-lg);border:1px solid var(--border);max-height:90vh;overflow-y:auto;">
+      <div class="section-head" style="margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;">
+        <div class="section-head__left">
+          <div class="section-head__bar" style="background:var(--blue);"></div>
+          <span class="section-head__title">Update Student Records — {{ student.student_id }}</span>
+        </div>
+        <button onclick="closeUpdateModal()"
+          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">✕</button>
+      </div>
+
+      <form action="{{ url_for('admin.update_student', student_id=student.student_id) }}" method="POST">
+        <div class="modal-form-grid">
+          <div class="modal-full-width">
+            <label class="form-label">Full Name</label>
+            <input type="text" name="full_name" class="form-control" value="{{ student.full_name }}" required>
+          </div>
+          <div>
+            <label class="form-label">Email Address</label>
+            <input type="email" name="email" class="form-control" value="{{ student.email }}" required>
+          </div>
+          <div>
+            <label class="form-label">Phone Number</label>
+            <input type="text" name="phone" class="form-control" value="{{ student.phone_number }}">
+          </div>
+          <div>
+            <label class="form-label">Class Level</label>
+            <input type="text" name="class_level" class="form-control" value="{{ student.class_level }}">
+          </div>
+          <div>
+            <label class="form-label">Section</label>
+            <input type="text" name="section" class="form-control" value="{{ student.section }}">
+          </div>
+          <div>
+            <label class="form-label">Guardian Name</label>
+            <input type="text" name="guardian_name" class="form-control" value="{{ student.guardian_name }}">
+          </div>
+          <div>
+            <label class="form-label">Guardian Email</label>
+            <input type="email" name="guardian_email" class="form-control" value="{{ student.guardian_email }}">
+          </div>
+          <div>
+            <label class="form-label">Attendance Rate (%)</label>
+            <input type="number" name="attendance_rate" class="form-control" value="{{ student.attendance_rate }}" step="0.1" min="0" max="100">
+          </div>
+          <div>
+            <label class="form-label">Due Amount (₹)</label>
+            <input type="number" name="due_amount" class="form-control" value="{{ student.due_amount }}" step="0.01" min="0">
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:12px;padding-top:16px;border-top:1px solid var(--border);margin-top:20px;">
+          <button type="button" onclick="closeUpdateModal()" class="btn btn-ghost">CANCEL</button>
+          <button type="submit" class="btn btn-primary">SAVE CHANGES</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openUpdateModal() {
+      document.getElementById('updateStudentModal').style.display = 'flex';
+    }
+    function closeUpdateModal() {
+      document.getElementById('updateStudentModal').style.display = 'none';
+    }
+    function confirmDelete() {
+      if (confirm('CRITICAL: Are you sure you want to delete this student? This will permanently remove all associated academic records, predictions, and complaints. This action CANNOT be undone.')) {
+        document.getElementById('deleteForm').submit();
+      }
+    }
+  </script>
+
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script>
+  function showRtFlash(inputEl, msg) {
+    document.querySelectorAll('.rt-flash').forEach(e => e.remove());
+    if (msg) {
+      const alertHtml = `
+        <div class="alert danger rt-flash" style="margin-bottom:8px; padding:6px 10px; font-size:12px; width: 100%;">
+          <span class="alert__icon" style="font-size:14px; margin-right:6px;">⚠</span>
+          <div class="alert__text"><strong>${msg}</strong></div>
+        </div>
+      `;
+      inputEl.parentNode.insertAdjacentHTML('afterbegin', alertHtml);
+    }
+  }
+
+  document.addEventListener('input', function(e) {
+    const inputEl = e.target;
+    if (!inputEl.form) return;
+    
+    const name = inputEl.name;
+    const val = inputEl.value;
+    if (!val) return showRtFlash(inputEl, null);
+    
+    if (name === 'full_name' || name === 'guardian_name') {
+      if (!/^[A-Za-z\s]+$/.test(val)) {
+        showRtFlash(inputEl, `Wrong input for ${name === 'full_name' ? 'Full Name' : 'Guardian Name'}. Correct version: Should only contain letters and spaces.`);
+      } else { showRtFlash(inputEl, null); }
+    } else if (name === 'phone_number' || name === 'phone') {
+      if (!/^\d*$/.test(val) || val.length > 10) {
+        showRtFlash(inputEl, `Wrong input for Phone Number. Correct version: Should contain exactly 10 digits.`);
+      } else { showRtFlash(inputEl, null); }
+    } else if (name === 'username') {
+      if (inputEl.closest('#panel-register')) {
+        if (!/^[A-Za-z0-9_]+$/.test(val)) {
+          showRtFlash(inputEl, `Wrong input for Username. Correct version: Should only contain letters, numbers, and underscores.`);
+        } else { showRtFlash(inputEl, null); }
+      }
+    }
+  });
+
+  document.addEventListener('focusout', function(e) {
+    const inputEl = e.target;
+    if (!inputEl.form) return;
+    const name = inputEl.name;
+    const val = inputEl.value;
+    
+    if (name === 'phone_number' || name === 'phone') {
+      if (val && val.length > 0 && val.length !== 10) {
+        showRtFlash(inputEl, `Wrong input for Phone Number. Correct version: Should contain exactly 10 digits.`);
+      }
+    } else if (name === 'full_name' || name === 'guardian_name') {
+      const parts = val.trim().split(/\s+/);
+      if (val && val.trim().length > 0 && parts.length < 2) {
+        showRtFlash(inputEl, `Wrong input for ${name === 'full_name' ? 'Full Name' : 'Guardian Name'}. Correct version: Please enter both first and last name.`);
+      }
+    }
+  });
+  </script>
 </body>
+
 </html>

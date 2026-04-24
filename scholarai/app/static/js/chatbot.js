@@ -11,24 +11,49 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const role = typeof CHAT_ROLE !== 'undefined' ? CHAT_ROLE : 'admin';
   const apiUrl = typeof CHAT_API !== 'undefined' ? CHAT_API : '';
+  function formatBotText(text) {
+    let safeText = String(text || '').replace(/[&<>'"]/g, tag => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[tag] || tag));
+
+    // Bold
+    safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Markdown Links [Text](URL)
+    safeText = safeText.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--blue);text-decoration:underline;font-weight:600;">$1</a>');
+    
+    // Raw URLs (only if not already part of an anchor tag)
+    safeText = safeText.replace(/(^|[^="'>])(https?:\/\/[^\s<()]+)/g, '$1<a href="$2" target="_blank" style="color:var(--blue);text-decoration:underline;font-weight:600;">$2</a>');
+
+    // Newlines
+    safeText = safeText.replace(/\n/g, '<br>');
+    return safeText;
+  }
 
   function appendMsg(text, sender) {
-    const safeText = String(text || '');
     const d = document.createElement('div');
     d.className = `chat-msg ${sender}${sender === 'user' && role === 'student' ? ' student' : ''}`;
 
     if (sender === 'bot') {
       d.innerHTML = `
         <div class="chat-msg__avatar ${role}">AI</div>
-        <div class="chat-msg__bubble">${safeText.replace(/\n/g, '<br>')}</div>
+        <div class="chat-msg__bubble">${formatBotText(text)}</div>
       `;
     } else {
+      const safeText = String(text || '').replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[tag] || tag)).replace(/\n/g, '<br>');
       d.innerHTML = `
         <div class="chat-msg__bubble">${safeText}</div>
       `;
     }
 
     messages.appendChild(d);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  // Scroll to bottom immediately on load if backend supplied history
+  if (messages.children.length > 2) { // more than just the greeting
     messages.scrollTop = messages.scrollHeight;
   }
 
@@ -70,7 +95,6 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       const data = await res.json();
-      console.log('API response:', data);
       removeTyping();
 
       if (!res.ok) {

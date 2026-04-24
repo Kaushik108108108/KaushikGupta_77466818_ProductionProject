@@ -3,43 +3,48 @@
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ScholarAI — Predictions</title>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
 </head>
 <body data-role="admin">
 {% set active = 'predictions' %}{% include 'shared/nav_admin.html' with context %}
 <div class="page">
-  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% with messages = get_flashed_messages(with_categories=true, category_filter=['prediction-success', 'prediction-error']) %}
   {% for cat, msg in messages %}
-    <div class="alert {% if cat=='success' %}success{% else %}danger{% endif %}" style="margin-bottom:16px;">
-      <span class="alert__icon">{% if cat=='success' %}✓{% else %}⚠{% endif %}</span>
+    <div class="alert {% if 'success' in cat %}success{% else %}danger{% endif %}" style="margin-bottom:16px;">
+      <span class="alert__icon">{% if 'success' in cat %}✓{% else %}⚠{% endif %}</span>
       <div class="alert__text">{{ msg }}</div>
     </div>
   {% endfor %}
-{% endwith %}
+  {% endwith %}
 
 <!-- RUN PREDICTION MODAL -->
 <div id="predModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
-  <div style="background:var(--white);width:520px;border-top:4px solid var(--blue);padding:28px 32px;">
+  <div style="background:var(--white);width:520px;max-width:90%;border-top:4px solid var(--blue);padding:28px 32px;box-sizing:border-box;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <div style="font-weight:700;font-size:16px;">Run New Prediction</div>
       <button onclick="document.getElementById('predModal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">✕</button>
     </div>
     <form method="POST" action="{{ url_for('admin.run_prediction') }}" style="display:flex;flex-direction:column;gap:16px;">
-      <div class="form-group">
-        <label class="form-label">Select Student</label>
-        <select name="student_id" class="form-control" required>
-          <option value="">Choose student...</option>
+      <div class="form-group" style="position:relative;">
+        <label class="form-label">Search Student</label>
+        <input type="hidden" name="student_id" id="realStudentId">
+        <input type="text" id="studentSearchInput" class="form-control" placeholder="Type here to search by name or ID..." autocomplete="off" required>
+        <div id="studentSearchDropdown" style="display:none; position:absolute; top:100%; left:0; width:100%; max-height:220px; overflow-y:auto; background:#fff; border:1px solid var(--border); border-radius:6px; z-index:1000; box-shadow:var(--shadow-lg);">
           {% for s in students %}
-          <option value="{{ s.student_id }}">{{ s.student_id }} — {{ s.full_name }}</option>
+          <div class="custom-s-option" data-val="{{ s.student_id }}" data-search="{{ s.student_id|lower }} {{ s.full_name|lower }}" style="padding:10px 14px; cursor:pointer; font-size:13px; color:var(--text); border-bottom:1px solid var(--border); transition:background 0.2s;">
+            <strong style="color:var(--text-dk);">{{ s.student_id }}</strong> — {{ s.full_name }}
+          </div>
           {% endfor %}
-        </select>
+          <div id="noStudentMsg" style="display:none; padding:12px; font-size:13px; color:var(--text-lt); text-align:center;">No match found.</div>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Subject</label>
         <select name="subject_name" class="form-control" required>
-          <option>Mathematics</option><option>Science</option><option>English</option>
-          <option>History</option><option>Geography</option><option>Computer Science</option>
-          <option>Physical Education</option>
+          {% for s in subjects %}
+          <option>{{ s }}</option>
+          {% endfor %}
         </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
@@ -67,11 +72,10 @@
     </form>
   </div>
 </div>
-  <div class="stat-row cols-4">
+  <div class="stat-row cols-3">
     <div class="stat-rect blue"><div class="stat-rect__label">Total Predictions Run</div><div class="stat-rect__value">{{ predictions|length }}</div><div class="stat-rect__sub">This academic term</div></div>
     <div class="stat-rect red"><div class="stat-rect__label">High Risk Detected</div><div class="stat-rect__value">{{ predictions|selectattr('risk_level','eq','high')|list|length }}</div><div class="stat-rect__sub">Flagged by AI model</div></div>
-    <div class="stat-rect amber"><div class="stat-rect__label">Model Accuracy</div><div class="stat-rect__value">87%</div><div class="stat-rect__sub">Validated on test set</div></div>
-    <div class="stat-rect green"><div class="stat-rect__label">Avg Confidence</div><div class="stat-rect__value">{{ (predictions|sum(attribute='confidence_score') / predictions|length)|round|int }}%</div><div class="stat-rect__sub">AI prediction confidence</div></div>
+    <div class="stat-rect amber"><div class="stat-rect__label">{{ model_name or "Model Accuracy" }}</div><div class="stat-rect__value">{{ model_accuracy }}%</div><div class="stat-rect__sub">{{ model_metric_sub or "Within 10 pts of term avg" }}</div></div>
   </div>
   <div class="card mb-0">
     <div class="section-head">
@@ -81,28 +85,116 @@
   <a href="{{ url_for('admin.export_predictions') }}"><button class="btn btn-ghost sm">📄 EXPORT ALL</button></a>
 </div>
     </div>
-    <table class="data-table">
-      <thead><tr><th>Prediction ID</th><th>Student</th><th>Class</th><th>Subject</th><th>Predicted Score</th><th>Risk Level</th><th>Confidence</th><th>Run By</th><th>Date</th><th>Action</th></tr></thead>
+    <div class="table-responsive">
+      <table class="data-table">
+      <thead><tr><th>Prediction ID</th><th>Student</th><th>Class</th><th>Subject</th><th>Predicted Score</th><th>Risk Level</th><th>Run By</th><th>Date</th><th>Action</th></tr></thead>
       <tbody>
         {% for p in predictions %}
-        <tr {% if p.risk_level=='high' %}class="high-risk"{% endif %}>
+        {% set risk_color = 'red' if p.risk_level == 'high' else 'amber' if p.risk_level == 'medium' else 'green' %}
+        {% set text_color = 'text-' ~ risk_color %}
+        <tr>
           <td class="mono text-muted">{{ p.prediction_id }}</td>
           <td><strong>{{ p.full_name }}</strong></td>
           <td>{{ p.class_level }}</td>
           <td>{{ p.subject_name }}</td>
-          <td><span class="mono fw-800 {% if p.predicted_score<65 %}text-red{% elif p.predicted_score<80 %}text-amber{% else %}text-green{% endif %}">{{ p.predicted_score }}%</span></td>
+          <td><span class="mono fw-800 {{ text_color }}">{{ p.predicted_score }}%</span></td>
           <td><span class="risk {{ p.risk_level }}">{{ 'HIGH RISK' if p.risk_level=='high' else 'MEDIUM' if p.risk_level=='medium' else 'LOW RISK' }}</span></td>
-          <td class="mono">{{ p.confidence_score }}%</td>
           <td class="text-muted">{{ p.predicted_by }}</td>
           <td class="text-muted">{{ p.created_at }}</td>
           <td><a href="{{ url_for('admin.student_details', student_id=p.student_id) }}"><button class="btn btn-outline sm">VIEW</button></a></td>
         </tr>
         {% endfor %}
       </tbody>
-    </table>
-    <div class="table-footer"><span class="mono fs-11 text-muted">{{ predictions|length }} records</span></div>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span class="mono fs-11 text-muted">Showing {{ predictions|length }} of {{ total_filtered }} records</span>
+      <div class="pagination">
+        {% if page > 1 %}
+        <a href="{{ url_for('admin.predictions', page=page-1) }}" style="text-decoration:none;"><button class="page-btn">←</button></a>
+        {% else %}
+        <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">←</button>
+        {% endif %}
+        
+        {% for p_num in range(1, total_pages + 1) %}
+          {% if p_num >= page - 2 and p_num <= page + 2 %}
+          <a href="{{ url_for('admin.predictions', page=p_num) }}" style="text-decoration:none;">
+            <button class="page-btn {% if p_num == page %}active{% endif %}">{{ p_num }}</button>
+          </a>
+          {% endif %}
+        {% endfor %}
+        
+        {% if page < total_pages %}
+        <a href="{{ url_for('admin.predictions', page=page+1) }}" style="text-decoration:none;"><button class="page-btn">→</button></a>
+        {% else %}
+        <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">→</button>
+        {% endif %}
+      </div>
+    </div>
   </div>
 </div>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<style>
+  .custom-s-option:hover {
+    background-color: var(--blue-lt) !important;
+  }
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const sInput = document.getElementById('studentSearchInput');
+  const sDropdown = document.getElementById('studentSearchDropdown');
+  const sHidden = document.getElementById('realStudentId');
+  const sOptions = document.querySelectorAll('.custom-s-option');
+  const sNoMsg = document.getElementById('noStudentMsg');
+  
+  if (sInput) {
+    sInput.addEventListener('focus', () => { sDropdown.style.display = 'block'; });
+    sInput.addEventListener('click', () => { sDropdown.style.display = 'block'; });
+
+    document.addEventListener('click', (e) => {
+      if(!sInput.contains(e.target) && !sDropdown.contains(e.target)) {
+        sDropdown.style.display = 'none';
+      }
+    });
+
+    sInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      let hasMatch = false;
+      sHidden.value = ''; // reset real value if user starts typing a new query
+      sInput.style.borderColor = "";
+      
+      sOptions.forEach(opt => {
+        if(opt.dataset.search.includes(q)) {
+          opt.style.display = 'block';
+          hasMatch = true;
+        } else {
+          opt.style.display = 'none';
+        }
+      });
+      sNoMsg.style.display = hasMatch ? 'none' : 'block';
+    });
+
+    sOptions.forEach(opt => {
+      opt.addEventListener('click', () => {
+        sInput.value = opt.innerText.trim();
+        sHidden.value = opt.dataset.val;
+        sDropdown.style.display = 'none';
+        sInput.style.borderColor = "var(--green)";
+      });
+    });
+
+    const pForm = sInput.closest('form');
+    if (pForm) {
+      pForm.addEventListener('submit', (e) => {
+        if (!sHidden.value) {
+          e.preventDefault();
+          sInput.style.borderColor = "var(--red)";
+          alert("Please select a student from the dropdown list by clicking on their name.");
+        }
+      });
+    }
+  }
+});
+</script>
 </body>
 </html>

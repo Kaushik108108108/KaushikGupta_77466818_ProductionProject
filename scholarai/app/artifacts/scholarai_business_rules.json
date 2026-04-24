@@ -1,0 +1,15 @@
+{
+  "risk_thresholds": {
+    "low_min_score": 75,
+    "medium_min_score": 55,
+    "high_below_score": 55
+  },
+  "recommendation_rules": {
+    "attendance_lt_65": "Critical attendance: arrange immediate follow-up with guardian and class teacher.",
+    "attendance_lt_75": "Low attendance: encourage consistent attendance and monitor weekly.",
+    "predicted_score_lt_55": "Provide urgent academic intervention, remedial sessions, and progress tracking.",
+    "predicted_score_lt_75": "Provide targeted support in weak areas and schedule additional practice.",
+    "performance_unstable": "Performance is unstable across terms; review subject-level gaps and study plan.",
+    "declining_trend": "Declining trend detected; plan early intervention before final assessment."
+  }
+}

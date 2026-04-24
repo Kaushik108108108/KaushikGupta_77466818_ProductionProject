@@ -2,6 +2,7 @@ import requests
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, flash
 from app.db import fetch_one, fetch_all, execute_dml
 from app.ai_service import generate_ai_recommendation
+from app import ml_service
 
 student_bp = Blueprint('student', __name__)
 
@@ -187,7 +188,24 @@ def dashboard():
                 "rec_type": "success"
             }]
 
-    return render_template('student/dashboard.html', student=student_info, recs=recs)
+    # Fetch subjects dynamically for the prediction form
+    subject_rows = fetch_all("""
+        SELECT subject_name FROM subjects WHERE is_active = 'Y' ORDER BY subject_name
+    """) or []
+    subjects = [r['subject_name'] for r in subject_rows]
+
+    # Get any pending prediction result from session
+    last_pred = session.pop('last_prediction', None)
+    result = last_pred.get('result') if last_pred else None
+    recs = last_pred.get('recs') if last_pred else []
+    subject_name = last_pred.get('subject_name') if last_pred else None
+
+    return render_template('student/dashboard.html',
+                           student=student_info,
+                           recs=recs,
+                           result=result,
+                           subject_name=subject_name,
+                           subjects=subjects)
 
 
 @student_bp.route('/predict', methods=['POST'])
@@ -216,7 +234,9 @@ def predict():
             class_level,
             section,
             NVL(performance_index, 0) AS performance_index,
-            NVL(risk_level, 'low') AS risk_level
+            NVL(risk_level, 'low') AS risk_level,
+            NVL(complaint_count, 0) AS complaint_count,
+            NVL(due_amount, 0) AS due_amount
         FROM students
         WHERE student_id = :sid
     """, {"sid": sid})
@@ -236,38 +256,27 @@ def predict():
         flash('Selected subject was not found in the database.', 'error')
         return redirect(url_for('student.dashboard'))
 
-    # Score & risk calculation
-    score_avg = (term1_score + term2_score + term3_score) / 3
-    att_factor = (attendance_rate / 100) * 25
-    predicted_score = round((score_avg * 0.75) + att_factor)
-    predicted_score = max(0, min(100, predicted_score))
+    prediction_bundle = ml_service.build_prediction_payload(
+        attendance_rate=attendance_rate,
+        term1_score=term1_score,
+        term2_score=term2_score,
+        term3_score=term3_score,
+        complaint_count=int(student_row.get('complaint_count', 0) or 0),
+        due_amount=float(student_row.get('due_amount', 0) or 0),
+        audience="student",
+    )
 
-    trend, trend_label, trend_note = calculate_trend(term1_score, term2_score, term3_score)
-
-    if predicted_score >= 75:
-        risk_level = 'low'
-        pi_label = 'Excellent' if predicted_score >= 85 else 'Good'
-    elif predicted_score >= 55:
-        risk_level = 'medium'
-        pi_label = 'Average'
-    else:
-        risk_level = 'high'
-        pi_label = 'Below Average'
-
-    if trend == 'declining' and risk_level == 'low':
-        risk_level = 'medium'
-    elif trend == 'declining' and risk_level == 'medium':
-        risk_level = 'high'
-
-    if attendance_rate < 65 and risk_level == 'low':
-        risk_level = 'medium'
-    elif attendance_rate < 65 and risk_level == 'medium':
-        risk_level = 'high'
-
-    grade = get_grade(predicted_score)
+    predicted_score = prediction_bundle['predicted_score']
+    trend = prediction_bundle['trend']
+    trend_label = prediction_bundle['trend_label']
+    trend_note = prediction_bundle['trend_note']
+    risk_level = prediction_bundle['risk_level']
+    risk_flags = prediction_bundle['risk_flags']
+    grade = prediction_bundle['grade']
+    pi_label = prediction_bundle['pi_label']
+    confidence_score = prediction_bundle['confidence_score']
     prediction_id = _next_prediction_id()
 
-    # AI recommendation for this specific subject prediction
     recommendation_text = _build_ai_recommendation(
         subject_name=subject_name,
         predicted_score=predicted_score,
@@ -318,8 +327,8 @@ def predict():
             :term2_score,
             :term3_score,
             :attendance_rate,
-            0,
-            0,
+            :complaint_count_snapshot,
+            :due_amount_snapshot,
             :predicted_score,
             :risk_level,
             :trend,
@@ -327,7 +336,7 @@ def predict():
             :trend_note,
             :grade,
             :performance_index_label,
-            82,
+            :confidence_score,
             :ai_recommendation,
             'Student',
             NULL,
@@ -344,6 +353,8 @@ def predict():
         "term2_score": term2_score,
         "term3_score": term3_score,
         "attendance_rate": attendance_rate,
+        "complaint_count_snapshot": int(student_row.get('complaint_count', 0) or 0),
+        "due_amount_snapshot": float(student_row.get('due_amount', 0) or 0),
         "predicted_score": predicted_score,
         "risk_level": risk_level,
         "trend": trend,
@@ -351,23 +362,39 @@ def predict():
         "trend_note": trend_note,
         "grade": grade,
         "performance_index_label": pi_label,
+        "confidence_score": confidence_score,
         "ai_recommendation": recommendation_text,
     })
-
-    # Risk flags
-    risk_flags = []
-    if trend == 'declining':
-        risk_flags.append('DECLINING TREND')
-    if attendance_rate < 75:
-        risk_flags.append('LOW ATTENDANCE')
-    if predicted_score < 55:
-        risk_flags.append('POOR ACADEMIC PERFORMANCE')
 
     for flag in risk_flags:
         execute_dml("""
             INSERT INTO prediction_flags (prediction_id, flag_name)
             VALUES (:prediction_id, :flag_name)
         """, {"prediction_id": prediction_id, "flag_name": flag})
+
+    ml_service.upsert_student_academic_record(
+        student_id=sid,
+        subject_id=subject_row['subject_id'],
+        attendance_rate=attendance_rate,
+        term1_score=term1_score,
+        term2_score=term2_score,
+        term3_score=term3_score,
+        predicted_score=predicted_score,
+        grade=grade,
+        trend=trend,
+        trend_label=trend_label,
+        ai_recommendation=recommendation_text,
+    )
+    ml_service.update_student_rollup(
+        student_id=sid,
+        predicted_score=predicted_score,
+        risk_level=risk_level,
+        attendance_rate=attendance_rate,
+        confidence_score=confidence_score,
+        trend=trend,
+        trend_label=trend_label,
+        trend_note=trend_note,
+    )
 
     student_info = _get_student_dashboard_info(sid)
 
@@ -382,26 +409,30 @@ def predict():
         'grade': grade,
         'pi_label': pi_label,
         'risk_level': risk_level,
-        'confidence_score': 82,
+        'confidence_score': confidence_score,
         'trend': trend,
         'trend_label': trend_label,
         'trend_note': trend_note,
         'ai_recommendation': recommendation_text,
+        'model_name': prediction_bundle['model_name'],
     }
 
-    return render_template(
-        'student/dashboard.html',
-        student=student_info,
-        recs=recs,
-        result=result,
-        subject_name=subject_name
-    )
+    session['last_prediction'] = {
+        'result': result,
+        'recs': recs,
+        'subject_name': subject_name
+    }
+    return redirect(url_for('student.dashboard'))
 
 
-@student_bp.route('/activity')
+@student_bp.route('/activity' )
 @student_required
 def activity():
     sid = session.get('student_id')
+
+    # Filter params from search form
+    f_subject = request.args.get('subject', '').strip()
+    f_risk    = request.args.get('risk', '').strip()
 
     history = fetch_all("""
         SELECT
@@ -415,8 +446,14 @@ def activity():
             NVL(ai_recommendation, 'No recommendation available.') AS ai_recommendation
         FROM predictions
         WHERE student_id = :sid
+          AND (:subject IS NULL OR LOWER(subject_name_snapshot) = LOWER(:subject))
+          AND (:risk    IS NULL OR risk_level = :risk)
         ORDER BY created_at DESC
-    """, {"sid": sid})
+    """, {
+        "sid": sid,
+        "subject": f_subject or None,
+        "risk":    f_risk or None,
+    })
 
     formatted_history = []
     for row in history:
@@ -431,7 +468,7 @@ def activity():
     total = len(formatted_history)
     high_risk = sum(1 for p in formatted_history if p['risk_level'] == 'high')
     avg_score = round(sum(float(p['predicted_score']) for p in formatted_history) / total) if total else 0
-    best_subject = max(formatted_history, key=lambda p: float(p['predicted_score']))['subject_name'][:2].upper() if total else '--'
+    best_subject = max(formatted_history, key=lambda p: float(p['predicted_score']))['subject_name'] if total else '--'
 
     stats = {
         'total': total,
@@ -440,7 +477,20 @@ def activity():
         'best_subject': best_subject
     }
 
-    return render_template('student/activity.html', history=formatted_history, stats=stats)
+    # Dynamic subjects list for search dropdown
+    subject_rows = fetch_all("""
+        SELECT subject_name FROM subjects WHERE is_active = 'Y' ORDER BY subject_name
+    """) or []
+    subjects = [r['subject_name'] for r in subject_rows]
+
+    return render_template(
+        'student/activity.html',
+        history=formatted_history,
+        stats=stats,
+        subjects=subjects,
+        f_subject=f_subject,
+        f_risk=f_risk
+    )
 
 
 @student_bp.route('/chatbot')
@@ -448,6 +498,44 @@ def activity():
 def chatbot():
     name = session.get('student_name', 'Student')
     sid = session.get('student_id', 'STU-001')
+    sel_session_id = request.args.get('session_id')
+    is_new = request.args.get('new') == 'true'
+
+    if is_new:
+        execute_dml("""
+            UPDATE chat_sessions 
+            SET is_active = 'N' 
+            WHERE owner_role = 'STUDENT' AND student_id = :sid
+        """, {"sid": sid})
+    elif sel_session_id:
+        execute_dml("""
+            UPDATE chat_sessions 
+            SET is_active = 'N' 
+            WHERE owner_role = 'STUDENT' AND student_id = :sid
+        """, {"sid": sid})
+        execute_dml("""
+            UPDATE chat_sessions 
+            SET is_active = 'Y' 
+            WHERE session_id = :session_id AND owner_role = 'STUDENT' AND student_id = :sid
+        """, {"session_id": sel_session_id, "sid": sid})
+
+    # Check for an active session to load its history
+    active_session = fetch_one("""
+        SELECT session_id
+        FROM chat_sessions
+        WHERE owner_role = 'STUDENT' AND student_id = :sid AND is_active = 'Y'
+        ORDER BY created_at DESC
+        FETCH FIRST 1 ROWS ONLY
+    """, {"sid": sid})
+
+    active_messages = []
+    if active_session:
+        active_messages = fetch_all("""
+            SELECT sender_type, message_text
+            FROM chat_messages
+            WHERE session_id = :session_id
+            ORDER BY message_id ASC
+        """, {"session_id": active_session["session_id"]})
 
     chat_session = fetch_all("""
         SELECT
@@ -457,13 +545,16 @@ def chatbot():
         WHERE owner_role = 'STUDENT'
           AND student_id = :sid
         ORDER BY created_at DESC
+        FETCH FIRST 20 ROWS ONLY
     """, {"sid": sid})
 
     return render_template(
         'student/chatbot.html',
         student_name=name,
         student_id=sid,
-        chat_session=chat_session
+        chat_session=chat_session,
+        active_messages=active_messages,
+        active_session_id=active_session['session_id'] if active_session else None
     )
 
 
@@ -511,6 +602,77 @@ def chatbot_send():
             FETCH FIRST 1 ROWS ONLY
         """, {"sid": sid})
 
+
+
+    # 1. Fetch student context
+    try:
+        student = fetch_one("""
+            SELECT performance_index, risk_level, attendance_rate, due_amount, complaint_count
+            FROM students WHERE student_id = :sid
+        """, {"sid": sid})
+        
+        # Latest subject performance
+        academic_summary = fetch_all("""
+            SELECT sub.subject_name, ar.predicted_score, ar.trend_label
+            FROM student_academic_records ar
+            JOIN subjects sub ON sub.subject_id = ar.subject_id
+            WHERE ar.student_id = :sid
+            ORDER BY ar.predicted_score ASC
+            FETCH FIRST 3 ROWS ONLY
+        """, {"sid": sid})
+        
+        perf_list = "\n".join([f"- {a['subject_name']}: {a['predicted_score']}% ({a['trend_label']})" for a in academic_summary])
+        
+        system_prompt = f"""
+            You are ScholarAI Student Assistant. You are chatting with {name} (ID: {sid}).
+            Ground your answers in their personal data:
+            - Performance Index: {student['performance_index'] if student else 0}%
+            - Risk Level: {student['risk_level'] if student else 'Low'}
+            - Attendance Rate: {student['attendance_rate'] if student else 0}%
+            - Pending Dues: ₹{student['due_amount'] if student else 0}
+            - Open Complaints: {student['complaint_count'] if student else 0}
+            
+            Their weak subjects needing attention:
+            {perf_list if academic_summary else 'No data yet.'}
+            
+            Be helpful, encouraging, and clear. 
+            When providing resources for motivation, study habits, or academics, ONLY USE the exact links provided in the VERIFIED RESOURCE LIBRARY below. Do NOT make up or hallucinate any other URLs, as they will break.
+
+            === VERIFIED RESOURCE LIBRARY ===
+            *Motivation & Study Habits (Exact Videos):*
+            - Tim Urban: Inside the mind of a master procrastinator - https://www.youtube.com/watch?v=arj7oStGLkU
+            - Angela Duckworth: Grit: the power of passion and perseverance - https://www.youtube.com/watch?v=H14bBuluwB8
+            - Ali Abdaal: How to study for exams - Evidence-based revision tips - https://www.youtube.com/watch?v=ukLnPbIffxE
+            - Matt D'Avella: How to stop procrastinating - https://www.youtube.com/watch?v=km4pOGd_lHw
+
+            *Academic Channels:*
+            - Khan Academy (Math/Science) - https://www.youtube.com/c/khanacademy
+            - CrashCourse (General Topics) - https://www.youtube.com/user/crashcourse
+            - MIT OpenCourseWare - https://www.youtube.com/c/mitocw
+        """
+
+        # 2. Fetch history
+        history_rows = fetch_all("""
+            SELECT sender_type, message_text 
+            FROM chat_messages 
+            WHERE session_id = :sid 
+            ORDER BY message_id DESC 
+            FETCH FIRST 5 ROWS ONLY
+        """, {"sid": session_row["session_id"]})
+        
+        history_list = []
+        for h in reversed(history_rows):
+            history_list.append({
+                "role": "user" if h["sender_type"] == "USER" else "assistant",
+                "content": h["message_text"]
+            })
+
+    except Exception as e:
+        print(f"Student context error: {str(e)}")
+        system_prompt = f"You are ScholarAI Student Assistant for {name}."
+        history_list = []
+
+    # Insert the user message AFTER history is fetched
     execute_dml("""
         INSERT INTO chat_messages (session_id, sender_type, message_text)
         VALUES (:session_id, 'USER', :message_text)
@@ -524,7 +686,8 @@ def chatbot_send():
             "http://127.0.0.1:8000/chat",
             json={
                 "message": msg,
-                "system_prompt": f"You are ScholarAI, a helpful academic assistant for student {name}. Give clear, helpful, short answers."
+                "history": history_list,
+                "system_prompt": system_prompt
             },
             timeout=60
         )

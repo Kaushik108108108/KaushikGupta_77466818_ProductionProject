@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ScholarAI — Admin Chatbot</title>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
 </head>
 <body data-role="admin">
@@ -14,13 +15,21 @@
         <div class="chat-header">
           <div class="chat-ai-icon admin">AI</div>
           <div><div class="chat-name">ScholarAI Admin Assistant</div><div class="chat-status">● ONLINE — Student database connected</div></div>
-          <div class="chat-session">Session: ADM-{{ range(1000,9999)|random }}</div>
+          <div class="chat-session">Session: {{ session.get("admin_id", "ADM-001") }}</div>
         </div>
         <div class="chat-messages" id="chatMessages">
           <div class="chat-msg bot">
             <div class="chat-msg__avatar admin">AI</div>
             <div class="chat-msg__bubble">Hello Admin! I can help with student risk analysis, performance summaries, bulk email composition, and prediction reports. What do you need?</div>
           </div>
+          {% if active_messages %}
+            {% for msg in active_messages %}
+            <div class="chat-msg {% if msg.sender_type == 'USER' %}user{% else %}bot{% endif %}">
+              {% if msg.sender_type != 'USER' %}<div class="chat-msg__avatar admin">AI</div>{% endif %}
+              <div class="chat-msg__bubble">{{ msg.message_text|safe }}</div>
+            </div>
+            {% endfor %}
+          {% endif %}
         </div>
         <div class="chat-input-row">
           <input class="chat-input" id="chatInput" placeholder="Ask about students, risks, predictions..."/>
@@ -39,10 +48,24 @@
         <div class="chat-prompt-item">Draft bulk warning email</div>
       </div>
       <div class="card mb-0">
-        <div class="form-label mb-12">Chat History</div>
-        {% for h in chat_session %}
-        <div style="font-size:12px;color:var(--text-lt);padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;">{{ h.session_label }}</div>
-        {% endfor %}
+        <div class="flex-between mb-12">
+          <div class="form-label mb-0">Chat History</div>
+          <a href="{{ url_for('admin.chatbot', new='true') }}" class="fs-12 text-blue fw-600" style="text-decoration:none;">+ New Chat</a>
+        </div>
+        <div class="chat-history-list">
+          {% for h in chat_session %}
+          <div class="chat-history-row {% if active_session_id == h.session_id %}active{% endif %}">
+            <a href="{{ url_for('admin.chatbot', session_id=h.session_id) }}" class="chat-history-link">
+              <div class="chat-history-topic">{{ h.topic or 'New conversation' }}{{ '…' if h.topic and h.topic|length >= 40 else '' }}</div>
+              <div class="chat-history-date">{{ h.session_date or '' }}</div>
+            </a>
+            <button class="chat-history-delete" title="Delete chat" onclick="event.preventDefault(); event.stopPropagation(); if(confirm('Delete this chat session?')) window.location.href='{{ url_for('admin.delete_chat_session', session_id=h.session_id) }}'">🗑</button>
+          </div>
+          {% endfor %}
+          {% if not chat_session %}
+          <div class="fs-12 text-muted p-10 text-center">No past chats yet</div>
+          {% endif %}
+        </div>
       </div>
       <div class="card mb-0">
         <div class="form-label mb-12">System Stats</div>

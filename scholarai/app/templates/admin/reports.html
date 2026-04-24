@@ -3,33 +3,370 @@
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ScholarAI — Reports</title>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <style>
+    .report-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .meta-item__label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-lt);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-family: var(--mono);
+      margin-bottom: 4px;
+    }
+    .meta-item__value {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--navy);
+    }
+    .detail-card {
+      margin-top: 30px;
+      animation: slideDown 0.3s ease-out;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .report-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--navy);
+    }
+    .report-header__brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .report-header__logo {
+      width: 40px;
+      height: 40px;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .report-header__name {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -0.02em;
+    }
+    .report-header__title {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-lt);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    @media print {
+      body * { visibility: hidden; }
+      #detail-section, #detail-section * { visibility: visible; }
+      #detail-section {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+        box-shadow: none;
+        border: none;
+      }
+      .section-head__actions { display: none; }
+    }
+  </style>
 </head>
 <body data-role="admin">
 {% set active = 'reports' %}{% include 'shared/nav_admin.html' with context %}
 <div class="page">
   <div class="stat-row cols-4">
-    <div class="stat-rect blue"><div class="stat-rect__label">Reports Generated</div><div class="stat-rect__value">18</div><div class="stat-rect__sub">This term</div></div>
-    <div class="stat-rect amber"><div class="stat-rect__label">Pending Reviews</div><div class="stat-rect__value">4</div><div class="stat-rect__sub">Awaiting action</div></div>
-    <div class="stat-rect green"><div class="stat-rect__label">Emails Sent</div><div class="stat-rect__value">31</div><div class="stat-rect__sub">To students & guardians</div></div>
-    <div class="stat-rect red"><div class="stat-rect__label">Escalations</div><div class="stat-rect__value">3</div><div class="stat-rect__sub">Flagged for review</div></div>
+    <div class="stat-rect blue"><div class="stat-rect__label">Reports Generated</div><div class="stat-rect__value">{{ report_stats.reports_generated }}</div><div class="stat-rect__sub">Total in system</div></div>
+    <div class="stat-rect amber"><div class="stat-rect__label">Pending Reviews</div><div class="stat-rect__value">{{ report_stats.pending_reviews }}</div><div class="stat-rect__sub">Awaiting action</div></div>
+    <div class="stat-rect green"><div class="stat-rect__label">Emails Sent</div><div class="stat-rect__value">{{ report_stats.emails_sent }}</div><div class="stat-rect__sub">To students & guardians</div></div>
+    <div class="stat-rect red"><div class="stat-rect__label">Escalations</div><div class="stat-rect__value">{{ report_stats.escalations }}</div><div class="stat-rect__sub">Flagged for review</div></div>
   </div>
+
+  {% with messages = get_flashed_messages(with_categories=true, category_filter=['report-success', 'report-error']) %}
+  {% for cat, msg in messages %}
+  <div class="alert {{ 'success' if 'success' in cat else 'danger' }}" style="margin-bottom:24px; animation: slideDown 0.3s ease-out;">
+    <span class="alert__icon">{{ '✓' if 'success' in cat else '⚠' }}</span>
+    <div class="alert__text"><strong>{{ msg }}</strong></div>
+  </div>
+  {% endfor %}
+  {% endwith %}
   <div class="card mb-0">
     <div class="section-head">
       <div class="section-head__left"><div class="section-head__bar"></div><span class="section-head__title">Generated Reports</span></div>
-      <div class="section-head__actions"><button class="btn btn-primary sm">+ GENERATE REPORT</button></div>
+      <div class="section-head__actions"><button class="btn btn-primary sm" onclick="generateReport()">+ GENERATE REPORT</button></div>
     </div>
-    <table class="data-table">
+    <div class="table-responsive">
+      <table class="data-table">
       <thead><tr><th>Report ID</th><th>Title</th><th>Type</th><th>Generated By</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>
-        <tr><td class="mono text-muted">RPT-018</td><td><strong>Weekly High-Risk Summary</strong></td><td>Risk Report</td><td class="text-muted">System Auto</td><td class="text-muted">Mar 10, 2026</td><td><span class="risk low">PUBLISHED</span></td><td><button class="btn btn-outline sm">DOWNLOAD</button></td></tr>
-        <tr><td class="mono text-muted">RPT-017</td><td><strong>Term 3 Performance Overview</strong></td><td>Performance</td><td class="text-muted">Admin</td><td class="text-muted">Mar 05, 2026</td><td><span class="risk low">PUBLISHED</span></td><td><button class="btn btn-outline sm">DOWNLOAD</button></td></tr>
-        <tr><td class="mono text-muted">RPT-016</td><td><strong>Class 10A Attendance Report</strong></td><td>Attendance</td><td class="text-muted">Admin</td><td class="text-muted">Feb 28, 2026</td><td><span class="risk medium">REVIEW</span></td><td><button class="btn btn-outline sm">DOWNLOAD</button></td></tr>
-        <tr><td class="mono text-muted">RPT-015</td><td><strong>Fee Dues Outstanding Report</strong></td><td>Finance</td><td class="text-muted">System Auto</td><td class="text-muted">Feb 25, 2026</td><td><span class="risk high">ESCALATED</span></td><td><button class="btn btn-outline sm">DOWNLOAD</button></td></tr>
+        {% for r in report_rows %}
+        <tr>
+          <td class="mono text-muted">{{ r.report_id }}</td>
+          <td><strong>{{ r.title }}</strong></td>
+          <td>{{ r.report_type }}</td>
+          <td class="text-muted">{{ r.generated_by_type }}</td>
+          <td class="text-muted">{{ r.created_at_fmt }}</td>
+          <td>
+            {% if r.status == 'PUBLISHED' %}<span class="risk low">PUBLISHED</span>
+            {% elif r.status == 'REVIEW' %}<span class="risk medium">REVIEW</span>
+            {% elif r.status == 'ESCALATED' %}<span class="risk high">ESCALATED</span>
+            {% else %}<span class="risk low">{{ r.status }}</span>{% endif %}
+          </td>
+          <td>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <a href="{{ url_for('admin.reports', view_id=r.report_id) }}#detail-section" class="btn btn-outline sm">VIEW</a>
+                
+                {% if r.status == 'REVIEW' %}
+                <a href="{{ url_for('admin.update_report_status', report_id=r.report_id, new_status='PUBLISHED') }}" class="btn btn-primary sm" title="APPROVE" style="padding:4px 10px; font-weight:bold;">✓</a>
+                <a href="{{ url_for('admin.update_report_status', report_id=r.report_id, new_status='ESCALATED') }}" class="btn btn-danger sm" title="ESCALATE" style="padding:4px 10px; font-weight:bold;">!</a>
+                {% endif %}
+                <a href="{{ url_for('admin.delete_report', report_id=r.report_id) }}" class="btn btn-ghost sm" title="DELETE" onclick="return confirm('Delete this report permanently?')" style="color:var(--risk-high); padding:4px 8px;">×</a>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-lt);">No reports generated yet.</td></tr>
+        {% endfor %}
       </tbody>
-    </table>
+      </table>
+    </div>
   </div>
+
+  {% if selected_report %}
+  <div class="card detail-card" id="detail-section">
+    <div class="report-header">
+      <div class="report-header__brand">
+        <div class="report-header__logo">S</div>
+        <div>
+          <div class="report-header__name">ScholarAI Academic Systems</div>
+          <div class="report-header__title">Official Institutional Snapshot</div>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div class="meta-item__label">Generated By</div>
+        <div class="meta-item__value">Administrative Panel</div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <div class="section-head__left">
+        <div class="section-head__bar" style="background:var(--navy);"></div>
+        <span class="section-head__title" style="font-size: 18px; letter-spacing: -0.01em;">{{ selected_report.title | upper }}</span>
+      </div>
+      <div class="section-head__actions">
+        {% if selected_report.status == 'REVIEW' %}
+        <a href="{{ url_for('admin.update_report_status', report_id=selected_report.report_id, new_status='PUBLISHED') }}" class="btn btn-primary sm">APPROVE & PUBLISH</a>
+        <a href="{{ url_for('admin.update_report_status', report_id=selected_report.report_id, new_status='ESCALATED') }}" class="btn btn-danger sm">ESCALATE</a>
+        {% elif selected_report.status == 'ESCALATED' %}
+        <a href="{{ url_for('admin.update_report_status', report_id=selected_report.report_id, new_status='PUBLISHED') }}" class="btn btn-primary sm">RESOLVE & PUBLISH</a>
+        {% elif selected_report.status == 'PUBLISHED' %}
+        <a href="{{ url_for('admin.update_report_status', report_id=selected_report.report_id, new_status='ESCALATED') }}" class="btn btn-danger sm">MANUAL ESCALATION</a>
+        {% endif %}
+        
+        <a href="{{ url_for('admin.reports') }}" class="btn btn-ghost sm">CLOSE VIEW</a>
+        <a href="{{ url_for('admin.delete_report', report_id=selected_report.report_id) }}" class="btn btn-outline sm" style="color:var(--risk-high); border-color:var(--risk-high);" onclick="return confirm('Delete this report permanently?')">DELETE REPORT</a>
+        <button class="btn btn-dark sm" onclick="window.print()">PRINT OFFICIAL DOCUMENT</button>
+      </div>
+    </div>
+    
+    <div class="report-meta">
+      <div class="meta-item">
+        <div class="meta-item__label">Report ID</div>
+        <div class="meta-item__value mono">#{{ selected_report.report_id }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-item__label">Type</div>
+        <div class="meta-item__value">{{ selected_report.report_type }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-item__label">Date Filter</div>
+        <div class="meta-item__value">
+          {% if report_params.d_start or report_params.d_end %}
+            {{ report_params.d_start or 'Any' }} to {{ report_params.d_end or 'Latest' }}
+          {% else %}
+            All Time
+          {% endif %}
+        </div>
+      </div>
+      {% if report_params.cls %}
+      <div class="meta-item">
+        <div class="meta-item__label">Class Level</div>
+        <div class="meta-item__value">{{ report_params.cls }}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="table-responsive">
+      <table class="data-table">
+      <thead>
+        <tr>
+          {% if selected_report.report_type == 'RISK' %}
+            <th>Risk Level</th><th>Count</th><th>Avg PI</th>
+          {% elif selected_report.report_type == 'ACADEMIC' %}
+            <th>Class</th><th>Section</th><th>Avg PI</th><th>Students</th>
+          {% elif selected_report.report_type == 'FINANCIAL' %}
+            <th>Class</th><th>Total Dues</th><th>Students with Dues</th>
+          {% elif selected_report.report_type == 'BEHAVIOR' %}
+            <th>Type</th><th>Severity</th><th>Count</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {# Handle both old (flat array) and new (dict with summary/details) formats #}
+        {% set rows = report_content.summary if report_content is mapping else report_content %}
+        {% for row in rows %}
+        <tr>
+          {% if selected_report.report_type == 'RISK' %}
+            <td><span class="risk {{ row.risk_level.lower() }}">{{ row.risk_level | upper }}</span></td>
+            <td class="mono">{{ row.count }}</td>
+            <td class="mono">{{ row.avg_pi }}%</td>
+          {% elif selected_report.report_type == 'ACADEMIC' %}
+            <td><strong>{{ row.class_level }}</strong></td>
+            <td>{{ row.section }}</td>
+            <td class="mono text-blue">{{ row.avg_pi }}%</td>
+            <td class="mono">{{ row.total_students }}</td>
+          {% elif selected_report.report_type == 'FINANCIAL' %}
+            <td><strong>{{ row.class_level }}</strong></td>
+            <td class="mono fw-700">Rs.{{ "{:,.2f}".format(row.total_dues) }}</td>
+            <td class="mono">{{ row.students_with_dues }}</td>
+          {% elif selected_report.report_type == 'BEHAVIOR' %}
+            <td><strong>{{ row.complaint_type }}</strong></td>
+            <td>
+                {% if row.severity == 'HIGH' %}<span class="risk high">HIGH</span>
+                {% elif row.severity == 'MEDIUM' %}<span class="risk medium">MEDIUM</span>
+                {% else %}<span class="risk low">LOW</span>{% endif %}
+            </td>
+            <td class="mono">{{ row.count }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    </div>
+
+    {% if report_content is mapping and report_content.details %}
+    <div class="section-head" style="margin-top:40px;">
+      <div class="section-head__left">
+        <div class="section-head__bar" style="background:var(--border);"></div>
+        <span class="section-head__title" style="font-size: 14px;">DETAILED STUDENT RECORDS</span>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="data-table">
+      <thead>
+        <tr>
+          <th>Student Name</th>
+          <th>ID</th>
+          {% if selected_report.report_type == 'RISK' %}
+            <th>Risk Level</th><th>Performance Index</th>
+          {% elif selected_report.report_type == 'ACADEMIC' %}
+            <th>Class</th><th>Section</th><th>Performance Index</th>
+          {% elif selected_report.report_type == 'FINANCIAL' %}
+            <th>Class</th><th>Current Outstanding Due</th>
+          {% elif selected_report.report_type == 'BEHAVIOR' %}
+            <th>Complaint Nature</th><th>Description</th><th>Severity</th><th>Recorded Date</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in report_content.details %}
+        <tr>
+          <td><strong>{{ s.full_name }}</strong></td>
+          <td class="mono">{{ s.student_id }}</td>
+          {% if selected_report.report_type == 'RISK' %}
+            <td><span class="risk {{ s.risk_level.lower() }}">{{ s.risk_level | upper }}</span></td>
+            <td class="mono">{{ s.performance_index }}%</td>
+          {% elif selected_report.report_type == 'ACADEMIC' %}
+            <td>{{ s.class_level }}</td><td>{{ s.section }}</td><td class="mono">{{ s.performance_index }}%</td>
+          {% elif selected_report.report_type == 'FINANCIAL' %}
+            <td>{{ s.class_level }}</td><td class="mono text-red">Rs.{{ "{:,.2f}".format(s.due_amount) }}</td>
+          {% elif selected_report.report_type == 'BEHAVIOR' %}
+            <td>{{ s.complaint_type }}</td>
+            <td style="max-width:300px; white-space:normal; font-size:12px; color:var(--text-lt);">{{ s.description }}</td>
+            <td>
+                {% if s.severity == 'HIGH' %}<span class="risk high">HIGH</span>
+                {% elif s.severity == 'MEDIUM' %}<span class="risk medium">MEDIUM</span>
+                {% else %}<span class="risk low">LOW</span>{% endif %}
+            </td>
+            <td class="mono">{{ s.recorded_at }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
+<div class="modal" id="generateReportModal">
+    <div class="modal__backdrop" onclick="closeModal()"></div>
+    <div class="modal__content">
+        <div class="modal__close" onclick="closeModal()">×</div>
+        <h3 class="modal__title">Generate New Report</h3>
+        <form action="{{ url_for('admin.generate_report') }}" method="POST" class="grid" style="gap:16px;">
+            <div class="form-group">
+                <label class="form-label">Report Type</label>
+                <select name="report_type" class="form-control" required>
+                    <option value="RISK">Risk & Vulnerability Summary</option>
+                    <option value="ACADEMIC">Academic Performance Insights</option>
+                    <option value="FINANCIAL">Financial Status & Dues Report</option>
+                    <option value="BEHAVIOR">Behavioral & Complaint Analysis</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Filter by Class (Optional)</label>
+                <select name="class_level" class="form-control">
+                    <option value="">All Classes</option>
+                    {% for c in classes %}
+                    <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="grid grid-2" style="gap:16px;">
+                <div class="form-group">
+                    <label class="form-label">Date From (Optional)</label>
+                    <input type="date" name="date_start" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date To (Optional)</label>
+                    <input type="date" name="date_end" class="form-control">
+                </div>
+            </div>
+            <div style="margin-top:10px;">
+                <button type="submit" class="btn btn-primary full">GENERATE SNAPSHOT</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+function generateReport() {
+    document.getElementById('generateReportModal').classList.add('open');
+}
+function closeModal() {
+    document.getElementById('generateReportModal').classList.remove('open');
+}
+</script>
 </body>
 </html>

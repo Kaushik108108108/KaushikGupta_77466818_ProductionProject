@@ -1,55 +1,261 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ScholarAI — Admin Login</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <style>
+    /* ── TAB TOGGLE ── */
+    .auth-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      background: var(--navy-lt);
+      padding: 4px;
+      border-radius: 6px;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 9px 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 4px;
+      color: var(--gray);
+      border: none;
+      background: transparent;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .auth-tab.active {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    /* ── REGISTER PANEL ── */
+    .auth-panel {
+      display: none;
+    }
+
+    .auth-panel.active {
+      display: block;
+    }
+
+    /* ── SUCCESS FLASH ── */
+    .alert.success .alert__text strong {
+      color: var(--green);
+    }
+
+    /* Fix: ensure panel scrolls */
+    .login-wrap {
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .login-panel-right {
+      overflow-y: auto;
+      height: 100%;
+      justify-content: flex-start;
+      padding-top: 40px;
+    }
+
+    /* Compact register form */
+    #panel-register .login-form {
+      gap: 10px;
+    }
+  </style>
 </head>
+
 <body>
-<div class="login-wrap">
-  <div class="login-panel-left admin">
-    <div class="login-brand">
-      <div class="login-logo admin">SA</div>
-      <div>
-        <div class="login-appname admin">ScholarAI</div>
-        <div style="color:var(--gray);font-size:11px;font-family:var(--mono);">ADMIN PORTAL v2.0</div>
-      </div>
-    </div>
-    <div class="login-headline">AI-Driven Early<br><span>Detection</span> of Student's<br>Academic Failure and<br>Personalized Support</div>
-    <div class="login-sub">AI-powered academic risk detection across attendance, grades, behavior records, and fee dues.</div>
-    <div class="login-stats">
-      <div class="login-stat"><div class="login-stat__val admin">254</div><div class="login-stat__lbl">Students Tracked</div></div>
-      <div class="login-stat"><div class="login-stat__val admin">87%</div><div class="login-stat__lbl">Prediction Accuracy</div></div>
-      <div class="login-stat"><div class="login-stat__val admin">12</div><div class="login-stat__lbl">High Risk Alerts</div></div>
-    </div>
-  </div>
-  <div class="login-panel-right admin">
-    <div class="login-form-title admin">Sign In</div>
-    <div class="login-form-sub admin">Administrator access only</div>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for cat, msg in messages %}
-        <div class="alert danger" style="margin-bottom:16px;">
-          <span class="alert__icon">⚠</span><div class="alert__text">{{ msg }}</div>
+  <div class="login-wrap">
+    <div class="login-panel-left admin">
+      <div class="login-brand">
+        <div class="login-logo admin">
+          <img src="{{ url_for('static', filename='img/logo.png') }}" alt="ScholarAI">
         </div>
-      {% endfor %}
-    {% endwith %}
-    <form method="POST" class="login-form">
-      <div class="form-group">
-        <label class="form-label" style="color:var(--gray);">Employee ID / Username</label>
-        <input type="text" name="username" class="form-control dark" placeholder="admin@school.edu" required/>
       </div>
-      <div class="form-group">
-        <label class="form-label" style="color:var(--gray);">Password</label>
-        <input type="password" name="password" class="form-control dark" placeholder="••••••••••" required/>
+      <div class="login-headline">AI-Driven Early<br><span>Detection</span> of Student's<br>Academic Failure
+        and<br>Personalized Support</div>
+      <div class="login-sub">AI-powered academic risk detection across attendance, grades, behavior records, and fee
+        dues.</div>
+      <div class="login-stats">
+        <div class="login-stat">
+          <div class="login-stat__val admin">{{ total_students }}</div>
+          <div class="login-stat__lbl">Students Tracked</div>
+        </div>
+        <div class="login-stat">
+          <div class="login-stat__val admin">{{ prediction_accuracy }}%</div>
+          <div class="login-stat__lbl">{{ model_name }}</div>
+        </div>
+        <div class="login-stat">
+          <div class="login-stat__val admin">{{ high_risk_count }}</div>
+          <div class="login-stat__lbl">High Risk Alerts</div>
+        </div>
       </div>
-      <button type="submit" class="btn btn-primary full" style="padding:13px;font-size:14px;letter-spacing:0.05em;">SIGN IN TO DASHBOARD →</button>
-      <div class="login-forgot admin">Forgot credentials? Contact IT Support</div>
-      <div style="border-top:1px solid var(--navy-lt);padding-top:18px;text-align:center;">
-        <span style="font-size:12px;color:var(--gray);">Are you a student? </span>
-        <a href="{{ url_for('auth.student_login') }}" style="font-size:12px;color:var(--blue);font-weight:600;">Student Portal →</a>
+    </div>
+
+    <div class="login-panel-right admin">
+      <div class="login-form-title admin">Administrator Portal</div>
+      <div class="login-form-sub admin">Secure access for school administrators</div>
+
+      <!-- Toggle Tabs -->
+      <div class="auth-tabs">
+        <button class="auth-tab" id="tab-signin" onclick="switchTab('signin')">Sign In</button>
+        <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</button>
       </div>
-    </form>
+
+      <!-- SIGN IN FORM -->
+      <div class="auth-panel" id="panel-signin">
+        <form method="POST" action="{{ url_for('auth.admin_login') }}" class="login-form" autocomplete="off">
+          <div class="form-group">
+            <label class="form-label" style="color:var(--gray);">Employee ID / Username</label>
+            <input type="text" name="username" class="form-control dark" placeholder="" required autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="color:var(--gray);">Password</label>
+            <input type="password" name="password" class="form-control dark" placeholder="" required autocomplete="new-password" />
+            <a href="{{ url_for('auth.forgot_password') }}" style="font-size: 11px; color: var(--gray); text-decoration: none; margin-top: 2px; text-align: right; display: block;">Forgot credentials?</a>
+          </div>
+          <button type="submit" class="btn btn-primary full"
+            style="padding:13px;font-size:14px;letter-spacing:0.05em;margin-top:8px;">SIGN IN TO DASHBOARD →</button>
+          <div style="border-top:1px solid var(--navy-lt);padding-top:18px;text-align:center;">
+            <span style="font-size:12px;color:var(--gray);">Are you a student? </span>
+            <a href="{{ url_for('auth.student_login') }}"
+              style="font-size:12px;color:var(--blue);font-weight:600;">Student Portal →</a>
+          </div>
+        </form>
+      </div>
+
+      <!-- REGISTER FORM -->
+      <div class="auth-panel" id="panel-register">
+        <form method="POST" action="{{ url_for('auth.admin_register') }}" class="login-form">
+          <div class="form-group">
+            <label class="form-label" style="color:var(--gray);">Full Name</label>
+            <input type="text" name="full_name" class="form-control dark" placeholder="Dr. Jane Smith" required />
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group">
+              <label class="form-label" style="color:var(--gray);">Username</label>
+              <input type="text" name="username" class="form-control dark" placeholder="janesmith" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="color:var(--gray);">Role</label>
+              <select name="role_name" class="form-control dark">
+                <option value="admin">Admin</option>
+                <option value="teacher">Teacher</option>
+                <option value="principal">Principal</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="color:var(--gray);">Email Address</label>
+            <input type="email" name="email" class="form-control dark" placeholder="admin@school.edu" required />
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group">
+              <label class="form-label" style="color:var(--gray);">Password</label>
+              <input type="password" name="password" class="form-control dark" placeholder="Password" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="color:var(--gray);">Confirm Password</label>
+              <input type="password" name="confirm_password" class="form-control dark" placeholder="Repeat" required />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary full"
+            style="padding:11px;font-size:13px;letter-spacing:0.05em;margin-top:4px;">CREATE ADMIN ACCOUNT →</button>
+          <div style="border-top:1px solid var(--navy-lt);padding-top:12px;text-align:center;">
+            <span style="font-size:12px;color:var(--gray);">Already have an account? </span>
+            <button type="button" onclick="switchTab('signin')"
+              style="background:none;border:none;font-size:12px;color:var(--blue);font-weight:600;cursor:pointer;">Sign
+              In →</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
-</div>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('panel-signin').classList.remove('active');
+      document.getElementById('panel-register').classList.remove('active');
+      document.getElementById('tab-signin').classList.remove('active');
+      document.getElementById('tab-register').classList.remove('active');
+      document.getElementById('panel-' + tab).classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+    }
+    // Read ?tab= from URL to auto-open the right panel
+    const urlTab = new URLSearchParams(window.location.search).get('tab') || 'signin';
+    switchTab(urlTab);
+  </script>
+  <script>
+  function showRtFlash(inputEl, msg) {
+    document.querySelectorAll('.rt-flash').forEach(e => e.remove());
+    if (msg) {
+      const alertHtml = `
+        <div class="alert danger rt-flash" style="margin-bottom:16px;">
+          <span class="alert__icon" style="font-size:14px; margin-right:6px;">⚠</span>
+          <div class="alert__text"><strong>${msg}</strong></div>
+        </div>
+      `;
+      const tabs = document.querySelector('.auth-tabs');
+      if (tabs) {
+        tabs.insertAdjacentHTML('afterend', alertHtml);
+      } else {
+        inputEl.parentNode.insertAdjacentHTML('afterbegin', alertHtml);
+      }
+    }
+  }
+
+  document.addEventListener('input', function(e) {
+    const inputEl = e.target;
+    if (!inputEl.form) return;
+    
+    const name = inputEl.name;
+    const val = inputEl.value;
+    if (!val) return showRtFlash(inputEl, null);
+    
+    if (name === 'full_name' || name === 'guardian_name') {
+      if (!/^[A-Za-z\s]+$/.test(val)) {
+        showRtFlash(inputEl, `Wrong input for ${name === 'full_name' ? 'Full Name' : 'Guardian Name'}. Correct version: Should only contain letters and spaces.`);
+      } else { showRtFlash(inputEl, null); }
+    } else if (name === 'phone_number' || name === 'phone') {
+      if (!/^\d*$/.test(val) || val.length > 10) {
+        showRtFlash(inputEl, `Wrong input for Phone Number. Correct version: Should contain exactly 10 digits.`);
+      } else { showRtFlash(inputEl, null); }
+    } else if (name === 'username') {
+      if (inputEl.closest('#panel-register')) {
+        if (!/^[A-Za-z0-9_]+$/.test(val)) {
+          showRtFlash(inputEl, `Wrong input for Username. Correct version: Should only contain letters, numbers, and underscores.`);
+        } else { showRtFlash(inputEl, null); }
+      }
+    }
+  });
+
+  document.addEventListener('focusout', function(e) {
+    const inputEl = e.target;
+    if (!inputEl.form) return;
+    const name = inputEl.name;
+    const val = inputEl.value;
+    
+    if (name === 'phone_number' || name === 'phone') {
+      if (val && val.length > 0 && val.length !== 10) {
+        showRtFlash(inputEl, `Wrong input for Phone Number. Correct version: Should contain exactly 10 digits.`);
+      }
+    } else if (name === 'full_name' || name === 'guardian_name') {
+      const parts = val.trim().split(/\s+/);
+      if (val && val.trim().length > 0 && parts.length < 2) {
+        showRtFlash(inputEl, `Wrong input for ${name === 'full_name' ? 'Full Name' : 'Guardian Name'}. Correct version: Please enter both first and last name.`);
+      }
+    }
+  });
+  </script>
 </body>
+
 </html>

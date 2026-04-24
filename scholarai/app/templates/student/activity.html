@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ScholarAI — Activity</title>
+  <title>ScholarAI — Activity Feed</title>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
 </head>
 <body data-role="student">
@@ -13,32 +14,48 @@
     <div class="section-head">
       <div class="section-head__left"><div class="section-head__bar" style="background:var(--cyan);"></div><span class="section-head__title">Search Prediction Records</span></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:14px;align-items:flex-end;">
-      <div class="form-group"><label class="form-label">Class</label><input type="text" class="form-control" placeholder="e.g. 10"/></div>
-      <div class="form-group"><label class="form-label">Section</label><input type="text" class="form-control" placeholder="e.g. A"/></div>
-      <div class="form-group"><label class="form-label">Student ID</label><input type="text" class="form-control" placeholder="STU-001"/></div>
+    <form method="GET" action="{{ url_for('student.activity') }}" style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:flex-end;">
       <div class="form-group">
         <label class="form-label">Subject</label>
-        <select class="form-control"><option>All Subjects</option><option>Mathematics</option><option>Science</option><option>English</option><option>History</option><option>Geography</option><option>Computer Science</option><option>Physical Education</option></select>
+        <select name="subject" class="form-control">
+          <option value="">All Subjects</option>
+          {% for s in subjects %}
+          <option value="{{ s }}" {% if f_subject == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
       </div>
-      <button class="btn btn-cyan">SEARCH</button>
-    </div>
+      <div class="form-group">
+        <label class="form-label">Risk Level</label>
+        <select name="risk" class="form-control">
+          <option value="">All Risk Levels</option>
+          <option value="high"   {% if f_risk == 'high'   %}selected{% endif %}>High Risk</option>
+          <option value="medium" {% if f_risk == 'medium' %}selected{% endif %}>Medium Risk</option>
+          <option value="low"    {% if f_risk == 'low'    %}selected{% endif %}>Low Risk</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn btn-cyan">SEARCH</button>
+        {% if f_subject or f_risk %}
+        <a href="{{ url_for('student.activity') }}"><button type="button" class="btn btn-ghost">CLEAR</button></a>
+        {% endif %}
+      </div>
+    </form>
   </div>
 
   <div class="stat-row cols-4">
     <div class="stat-rect blue"><div class="stat-rect__label">Total Predictions</div><div class="stat-rect__value">{{ stats.total }}</div><div class="stat-rect__sub">All time records</div></div>
     <div class="stat-rect red"><div class="stat-rect__label">High Risk Results</div><div class="stat-rect__value">{{ stats.high_risk }}</div><div class="stat-rect__sub">Requires attention</div></div>
     <div class="stat-rect amber"><div class="stat-rect__label">Avg Predicted Score</div><div class="stat-rect__value">{{ stats.avg_score }}%</div><div class="stat-rect__sub">Across all subjects</div></div>
-    <div class="stat-rect green"><div class="stat-rect__label">Best Subject</div><div class="stat-rect__value">{{ stats.best_subject }}</div><div class="stat-rect__sub">Highest predicted score</div></div>
+    <div class="stat-rect green"><div class="stat-rect__label">Best Subject</div><div class="stat-rect__value" style="font-size:14px;">{{ stats.best_subject }}</div><div class="stat-rect__sub">Highest predicted score</div></div>
   </div>
 
   <div class="card mb-0">
     <div class="section-head">
       <div class="section-head__left"><div class="section-head__bar" style="background:var(--cyan);"></div><span class="section-head__title">All Prediction Attempts</span></div>
-      <div class="section-head__actions"><button class="btn btn-ghost sm">📄 DOWNLOAD PDF</button></div>
     </div>
-    <table class="data-table">
-      <thead><tr><th>Prediction ID</th><th>Date</th><th>Subject</th><th>Predicted Score</th><th>Performance Index</th><th>Risk Level</th><th>AI Recommendation</th><th>Action</th></tr></thead>
+    <div class="table-responsive">
+      <table class="data-table">
+      <thead><tr><th>Prediction ID</th><th>Date</th><th>Subject</th><th>Predicted Score</th><th>Grade</th><th>Risk Level</th><th>AI Recommendation</th></tr></thead>
       <tbody>
         {% for h in history %}
         <tr {% if h.risk_level=='high' %}class="high-risk"{% endif %}>
@@ -46,17 +63,19 @@
           <td class="text-muted">{{ h.created_at }}</td>
           <td><strong>{{ h.subject_name }}</strong></td>
           <td><span class="mono fw-800 {% if h.predicted_score<65 %}text-red{% elif h.predicted_score<80 %}text-amber{% else %}text-green{% endif %}">{{ h.predicted_score }}%</span></td>
-          <td>{{ h.performance_index }}</td>
+          <td class="mono fw-700">{{ h.grade }}</td>
           <td><span class="risk {{ h.risk_level }}">{{ 'HIGH RISK' if h.risk_level=='high' else 'MEDIUM' if h.risk_level=='medium' else 'LOW RISK' }}</span></td>
-          <td class="text-muted fs-12">{{ h.ai_recommendation }}</td>
-          <td><button class="btn btn-outline sm">EMAIL</button></td>
+          <td class="text-muted fs-12" style="max-width:280px;">{{ h.ai_recommendation }}</td>
         </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-lt);">No prediction records found.</td></tr>
         {% endfor %}
       </tbody>
-    </table>
+      </table>
+    </div>
     <div class="table-footer">
       <a href="{{ url_for('student.dashboard') }}"><button class="btn btn-ghost sm">← BACK TO DASHBOARD</button></a>
-      <span class="mono fs-11 text-muted">{{ history|length }} records found</span>
+      <span class="mono fs-11 text-muted">{{ history|length }} record{{ 's' if history|length != 1 else '' }} found</span>
     </div>
   </div>
 </div>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScholarAI — {{ report.title }}</title>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <style>
+    .report-meta {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .meta-item__label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-lt);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: var(--mono);
+      margin-bottom: 4px;
+    }
+
+    .meta-item__value {
+      font-weight: 600;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body data-role="admin">
+  {% set active = 'reports' %}{% include 'shared/nav_admin.html' with context %}
+  <div class="page">
+    <div class="breadcrumb">
+      <a href="{{ url_for('admin.reports') }}">REPORTS</a>
+      <span class="breadcrumb__sep">/</span>
+      <span class="breadcrumb__current">{{ report.title | upper }}</span>
+      <div class="breadcrumb__actions">
+        <button class="btn btn-outline sm" onclick="window.print()">PRINT REPORT</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head">
+        <div class="section-head__left">
+          <div class="section-head__bar"></div>
+          <span class="section-head__title">SNAPSHOT DETAILS</span>
+        </div>
+      </div>
+
+      <div class="report-meta">
+        <div class="meta-item">
+          <div class="meta-item__label">Report Type</div>
+          <div class="meta-item__value">{{ report.report_type }}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-item__label">Generated On</div>
+          <div class="meta-item__value">{{ report.created_at }}</div>
+        </div>
+        {% if params.cls %}
+        <div class="meta-item">
+          <div class="meta-item__label">Class Level</div>
+          <div class="meta-item__value">{{ params.cls }}</div>
+        </div>
+        {% endif %}
+        {% if params.d_start or params.d_end %}
+        <div class="meta-item">
+          <div class="meta-item__label">Date Range</div>
+          <div class="meta-item__value">
+            {{ params.d_start or 'Any' }} to {{ params.d_end or 'Today' }}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if content %}
+      <div class="table-responsive">
+        <table class="data-table">
+        <thead>
+          <tr>
+            {% if report.report_type == 'RISK' %}
+            <th>Risk Level</th>
+            <th>Student Count</th>
+            <th>Avg Performance Index (PI)</th>
+            {% elif report.report_type == 'ACADEMIC' %}
+            <th>Class Level</th>
+            <th>Section</th>
+            <th>Avg Performance Index (PI)</th>
+            <th>Total Students</th>
+            {% elif report.report_type == 'FINANCIAL' %}
+            <th>Class Level</th>
+            <th>Total Outstanding Dues</th>
+            <th>Students with Dues</th>
+            {% elif report.report_type == 'BEHAVIOR' %}
+            <th>Complaint Type</th>
+            <th>Severity</th>
+            <th>Total Occurrences</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in content %}
+          <tr>
+            {% if report.report_type == 'RISK' %}
+            <td><span class="risk {{ row.risk_level.lower() }}">{{ row.risk_level | upper }}</span></td>
+            <td class="mono">{{ row.count }}</td>
+            <td class="mono">{{ row.avg_pi }}%</td>
+            {% elif report.report_type == 'ACADEMIC' %}
+            <td><strong>{{ row.class_level }}</strong></td>
+            <td>{{ row.section }}</td>
+            <td class="mono">{{ row.avg_pi }}%</td>
+            <td class="mono">{{ row.total_students }}</td>
+            {% elif report.report_type == 'FINANCIAL' %}
+            <td><strong>{{ row.class_level }}</strong></td>
+            <td class="mono">Rs.{{ "{:,.2f}".format(row.total_dues) }}</td>
+            <td class="mono">{{ row.students_with_dues }}</td>
+            {% elif report.report_type == 'BEHAVIOR' %}
+            <td><strong>{{ row.complaint_type }}</strong></td>
+            <td>
+              {% if row.severity == 'HIGH' %}<span class="risk high">HIGH</span>
+              {% elif row.severity == 'MEDIUM' %}<span class="risk medium">MEDIUM</span>
+              {% else %}<span class="risk low">LOW</span>{% endif %}
+            </td>
+            <td class="mono">{{ row.count }}</td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="padding:40px; text-align:center; color:var(--text-lt);">
+        No data found for the selected parameters.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+
+</html>

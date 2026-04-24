@@ -6,12 +6,23 @@ from .routes.auth import auth_bp
 from .routes.admin import admin_bp
 from .routes.student import student_bp
 from .db import init_db, close_db, fetch_one
+from .extensions import mail
 
 def create_app():
     load_dotenv()
 
     app = Flask(__name__)
     app.secret_key = os.getenv("SECRET_KEY", "scholarai-secret-key-change-in-production")
+    
+    # Mail Config
+    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+    app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
+    app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+    app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
+    
+    mail.init_app(app)
 
     init_db()
     app.teardown_appcontext(close_db)
