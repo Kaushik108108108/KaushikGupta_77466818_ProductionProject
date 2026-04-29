@@ -232,6 +232,23 @@
       if (val && val.trim().length > 0 && parts.length < 2) {
         showRtFlash(inputEl, `Wrong input for ${name === 'full_name' ? 'Full Name' : 'Guardian Name'}. Correct version: Please enter both first and last name.`);
       }
+    } else if (name === 'email' || name === 'guardian_email') {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (val && val.length > 0 && !emailRegex.test(val)) {
+        showRtFlash(inputEl, `Wrong input for ${name === 'email' ? 'Email Address' : 'Guardian Email'}. Correct version: Must be a valid email format.`);
+      }
+    }
+  });
+
+  document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (form.closest('#panel-register')) {
+      form.querySelectorAll('input').forEach(input => {
+        input.dispatchEvent(new Event('focusout', { bubbles: true }));
+      });
+    }
+    if (document.querySelector('.rt-flash')) {
+      e.preventDefault();
     }
   });
   </script>

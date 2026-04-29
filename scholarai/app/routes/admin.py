@@ -1260,11 +1260,25 @@ def generate_report():
     params = {"cls": cls, "d_start": d_start, "d_end": d_end}
 
     try:
+        from datetime import datetime
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        if d_start and d_start > today_str:
+            flash('Start date cannot be in the future.', 'report-error')
+            return redirect(url_for('admin.reports'))
+        if d_end and d_end > today_str:
+            flash('End date cannot be in the future.', 'report-error')
+            return redirect(url_for('admin.reports'))
+        if d_start and d_end and d_start > d_end:
+            flash('Start date cannot be after end date.', 'report-error')
+            return redirect(url_for('admin.reports'))
+
         if rtype == 'RISK':
             sql_sum = """
                 SELECT risk_level, COUNT(*) as count, ROUND(AVG(performance_index), 1) as avg_pi
                 FROM students
                 WHERE (:cls IS NULL OR class_level = :cls)
+                  AND (:d_start IS NULL OR created_at >= TO_DATE(:d_start, 'YYYY-MM-DD'))
+                  AND (:d_end IS NULL OR created_at < TO_DATE(:d_end, 'YYYY-MM-DD') + 1)
                 GROUP BY risk_level
                 ORDER BY risk_level
             """
@@ -1272,16 +1286,20 @@ def generate_report():
                 SELECT student_id, full_name, risk_level, performance_index 
                 FROM students 
                 WHERE (:cls IS NULL OR class_level = :cls) 
+                  AND (:d_start IS NULL OR created_at >= TO_DATE(:d_start, 'YYYY-MM-DD'))
+                  AND (:d_end IS NULL OR created_at < TO_DATE(:d_end, 'YYYY-MM-DD') + 1)
                 ORDER BY risk_level DESC, performance_index ASC
             """
-            summary = [_normalize_row(r) for r in fetch_all(sql_sum, {"cls": cls})]
-            details = [_normalize_row(r) for r in fetch_all(sql_det, {"cls": cls})]
+            summary = [_normalize_row(r) for r in fetch_all(sql_sum, {"cls": cls, "d_start": d_start, "d_end": d_end})]
+            details = [_normalize_row(r) for r in fetch_all(sql_det, {"cls": cls, "d_start": d_start, "d_end": d_end})]
         
         elif rtype == 'ACADEMIC':
             sql_sum = """
                 SELECT class_level, section, ROUND(AVG(performance_index), 1) as avg_pi, COUNT(*) as total_students
                 FROM students
                 WHERE (:cls IS NULL OR class_level = :cls)
+                  AND (:d_start IS NULL OR created_at >= TO_DATE(:d_start, 'YYYY-MM-DD'))
+                  AND (:d_end IS NULL OR created_at < TO_DATE(:d_end, 'YYYY-MM-DD') + 1)
                 GROUP BY class_level, section
                 ORDER BY class_level, section
             """
@@ -1289,16 +1307,20 @@ def generate_report():
                 SELECT student_id, full_name, class_level, section, performance_index 
                 FROM students 
                 WHERE (:cls IS NULL OR class_level = :cls) 
+                  AND (:d_start IS NULL OR created_at >= TO_DATE(:d_start, 'YYYY-MM-DD'))
+                  AND (:d_end IS NULL OR created_at < TO_DATE(:d_end, 'YYYY-MM-DD') + 1)
                 ORDER BY class_level, section, performance_index DESC
             """
-            summary = [_normalize_row(r) for r in fetch_all(sql_sum, {"cls": cls})]
-            details = [_normalize_row(r) for r in fetch_all(sql_det, {"cls": cls})]
+            summary = [_normalize_row(r) for r in fetch_all(sql_sum, {"cls": cls, "d_start": d_start, "d_end": d_end})]
+            details = [_normalize_row(r) for r in fetch_all(sql_det, {"cls": cls, "d_start": d_start, "d_end": d_end})]
 
         elif rtype == 'FINANCIAL':
             sql_sum = """
                 SELECT class_level, SUM(due_amount) as total_dues, COUNT(CASE WHEN due_amount > 0 THEN 1 END) as students_with_dues
                 FROM students
                 WHERE (:cls IS NULL OR class_level = :cls)
+                  AND (:d_start IS NULL OR created_at >= TO_DATE(:d_start, 'YYYY-MM-DD'))
+                  AND (:d_end IS NULL OR created_at < TO_DATE(:d_end, 'YYYY-MM-DD') + 1)
                 GROUP BY class_level
                 ORDER BY total_dues DESC
             """
@@ -1306,10 +1328,12 @@ def generate_report():
                 SELECT student_id, full_name, class_level, due_amount 
                 FROM students 
                 WHERE (:cls IS NULL OR class_level = :cls) AND due_amount > 0
+                  AND (:d_start IS NULL OR created_at >= TO_DATE(:d_start, 'YYYY-MM-DD'))
+                  AND (:d_end IS NULL OR created_at < TO_DATE(:d_end, 'YYYY-MM-DD') + 1)
                 ORDER BY due_amount DESC
             """
-            summary = [_normalize_row(r) for r in fetch_all(sql_sum, {"cls": cls})]
-            details = [_normalize_row(r) for r in fetch_all(sql_det, {"cls": cls})]
+            summary = [_normalize_row(r) for r in fetch_all(sql_sum, {"cls": cls, "d_start": d_start, "d_end": d_end})]
+            details = [_normalize_row(r) for r in fetch_all(sql_det, {"cls": cls, "d_start": d_start, "d_end": d_end})]
 
         elif rtype == 'BEHAVIOR':
             sql_sum = """
@@ -1317,8 +1341,8 @@ def generate_report():
                 FROM complaints c
                 JOIN students s ON s.student_id = c.student_id
                 WHERE (:cls IS NULL OR s.class_level = :cls)
-                  AND (:d_start IS NULL OR c.recorded_at >= TO_TIMESTAMP(:d_start, 'YYYY-MM-DD'))
-                  AND (:d_end IS NULL OR c.recorded_at <= TO_TIMESTAMP(:d_end, 'YYYY-MM-DD'))
+                  AND (:d_start IS NULL OR c.recorded_at >= TO_DATE(:d_start, 'YYYY-MM-DD'))
+                  AND (:d_end IS NULL OR c.recorded_at < TO_DATE(:d_end, 'YYYY-MM-DD') + 1)
                 GROUP BY complaint_type, severity
                 ORDER BY severity DESC, count DESC
             """
@@ -1328,12 +1352,16 @@ def generate_report():
                 FROM complaints c
                 JOIN students s ON s.student_id = c.student_id
                 WHERE (:cls IS NULL OR s.class_level = :cls)
-                  AND (:d_start IS NULL OR c.recorded_at >= TO_TIMESTAMP(:d_start, 'YYYY-MM-DD'))
-                  AND (:d_end IS NULL OR c.recorded_at <= TO_TIMESTAMP(:d_end, 'YYYY-MM-DD'))
+                  AND (:d_start IS NULL OR c.recorded_at >= TO_DATE(:d_start, 'YYYY-MM-DD'))
+                  AND (:d_end IS NULL OR c.recorded_at < TO_DATE(:d_end, 'YYYY-MM-DD') + 1)
                 ORDER BY c.recorded_at DESC
             """
             summary = [_normalize_row(r) for r in fetch_all(sql_sum, {"cls": cls, "d_start": d_start, "d_end": d_end})]
             details = [_normalize_row(r) for r in fetch_all(sql_det, {"cls": cls, "d_start": d_start, "d_end": d_end})]
+
+        if not summary and not details:
+            flash('No data found for the selected criteria. Report not generated.', 'report-error')
+            return redirect(url_for('admin.reports'))
 
         report_id = _next_report_id()
         payload = {

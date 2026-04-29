@@ -101,8 +101,12 @@ def admin_register():
         flash('All fields are required.', 'error')
         return redirect(url_for('auth.admin_login') + '?tab=register')
 
-    if not re.match(r"^[A-Za-z\s]+$", full_name):
-        flash('Wrong input for Full Name. Correct version: Should only contain letters and spaces.', 'error')
+    if len(full_name.strip().split()) < 2 or not re.match(r"^[A-Za-z\s]+$", full_name):
+        flash('Wrong input for Full Name. Correct version: Please enter both first and last name using only letters.', 'error')
+        return redirect(url_for('auth.admin_login') + '?tab=register')
+
+    if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
+        flash('Wrong input for Email Address. Correct version: Must be a valid email address.', 'error')
         return redirect(url_for('auth.admin_login') + '?tab=register')
 
     if not re.match(r"^[A-Za-z0-9_]+$", username):
@@ -206,16 +210,24 @@ def student_register():
         flash('All required fields must be filled.', 'error')
         return redirect(url_for('auth.student_login') + '?tab=register')
 
-    if not re.match(r"^[A-Za-z\s]+$", full_name):
-        flash('Wrong input for Full Name. Correct version: Should only contain letters and spaces.', 'error')
+    if len(full_name.strip().split()) < 2 or not re.match(r"^[A-Za-z\s]+$", full_name):
+        flash('Wrong input for Full Name. Correct version: Please enter both first and last name using only letters.', 'error')
+        return redirect(url_for('auth.student_login') + '?tab=register')
+
+    if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
+        flash('Wrong input for Email Address. Correct version: Must be a valid email address.', 'error')
         return redirect(url_for('auth.student_login') + '?tab=register')
 
     if phone_number and not re.match(r"^\d{10}$", phone_number):
         flash('Wrong input for Phone Number. Correct version: Should contain exactly 10 digits.', 'error')
         return redirect(url_for('auth.student_login') + '?tab=register')
 
-    if guardian_name and not re.match(r"^[A-Za-z\s]+$", guardian_name):
-        flash('Wrong input for Guardian Name. Correct version: Should only contain letters and spaces.', 'error')
+    if guardian_name and (len(guardian_name.strip().split()) < 2 or not re.match(r"^[A-Za-z\s]+$", guardian_name)):
+        flash('Wrong input for Guardian Name. Correct version: Please enter both first and last name using only letters.', 'error')
+        return redirect(url_for('auth.student_login') + '?tab=register')
+
+    if guardian_email and not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", guardian_email):
+        flash('Wrong input for Guardian Email. Correct version: Must be a valid email address.', 'error')
         return redirect(url_for('auth.student_login') + '?tab=register')
 
     if password != confirm:
@@ -282,6 +294,10 @@ def forgot_password():
             flash('Email is required.', 'error')
             return render_template('shared/forgot_password.html')
 
+        if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
+            flash('Invalid email address. Must be a valid email format.', 'error')
+            return render_template('shared/forgot_password.html')
+
         # Check if email exists in either table
         user = fetch_one("SELECT email, 'ADMIN' as user_type FROM admin_users WHERE LOWER(email) = LOWER(:email)", {"email": email})
         if not user:
@@ -314,8 +330,7 @@ def forgot_password():
             else:
                 flash(f'Failed to send email: {msg}', 'error')
         else:
-            # For security, don't reveal if email exists
-            flash('If an account exists with that email, a reset link has been sent.', 'success')
+            flash('No account found with this email address.', 'error')
             
     return render_template('shared/forgot_password.html')
 

@@ -367,6 +367,14 @@ function generateReport() {
 function closeModal() {
     document.getElementById('generateReportModal').classList.remove('open');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const startInput = document.querySelector('input[name="date_start"]');
+    const endInput = document.querySelector('input[name="date_end"]');
+    if (startInput) startInput.setAttribute('max', today);
+    if (endInput) endInput.setAttribute('max', today);
+});
 </script>
 </body>
 </html>
