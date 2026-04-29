@@ -76,7 +76,7 @@
             toast.style.opacity = '0';
             toast.style.transform = 'translateX(20px)';
             setTimeout(() => toast.remove(), 500);
-          }, 5000);
+          }, 2000);
         }
       });
     </script>
@@ -199,7 +199,7 @@
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(20px)';
         setTimeout(() => toast.remove(), 500);
-      }, 5000);
+      }, 2000);
     }
 
     // AJAX Form Submission
@@ -222,29 +222,28 @@
           body: formData,
           headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(response => response.json())
-        .then(data => {
-          showToast(data.message, data.success);
-          // Scroll to toast so user sees the result
-          const toastContainer = document.querySelector('.toast-container');
-          if (toastContainer) {
-            toastContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-          if (data.success) {
-            btn.innerHTML = '✓ SENT';
-            btn.classList.add('sent-state');
-            // Keep disabled — email already sent
+        .then(async response => {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+              throw new Error(data.message || 'The server encountered an issue while sending the email.');
+            }
+            return data;
           } else {
-            btn.innerHTML = originalHTML;
-            btn.disabled = false;
+            throw new Error('The server is currently unavailable or returned an invalid response. Please try again.');
           }
         })
+        .then(data => {
+          showToast(data.message, true);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          btn.innerHTML = '✓ SENT';
+          btn.classList.add('sent-state');
+        })
         .catch(err => {
-          showToast('An error occurred while sending.', false);
-          const toastContainer = document.querySelector('.toast-container');
-          if (toastContainer) {
-            toastContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+          const errMsg = err.message || 'Unable to connect to the server. Please check your network and try again.';
+          showToast(errMsg, false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
           btn.innerHTML = originalHTML;
           btn.disabled = false;
         });

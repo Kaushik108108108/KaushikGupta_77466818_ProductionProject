@@ -1,10 +1,41 @@
 from flask_mail import Message
 from .extensions import mail
+import smtplib
+import dns.resolver
+
+def verify_email_exists(email):
+    domain = email.split('@')[1]
+    try:
+        records = dns.resolver.resolve(domain, 'MX')
+        mx_record = str(sorted(records, key=lambda x: x.preference)[0].exchange)
+        
+        server = smtplib.SMTP(timeout=5)
+        server.connect(mx_record)
+        server.helo(server.local_hostname)
+        server.mail('admin@scholarai.com')
+        code, message = server.rcpt(str(email))
+        server.quit()
+        
+        if code == 250:
+            return True, "Valid"
+        else:
+            return False, "This email account does not exist."
+    except Exception:
+        return False, "This email account does not exist."
 
 def send_custom_email(recipient, subject, body, cc=None):
     """
     Sends a custom email with SMTP.
     """
+    is_valid, msg = verify_email_exists(recipient)
+    if not is_valid:
+        return False, msg
+        
+    if cc:
+        is_valid_cc, msg_cc = verify_email_exists(cc)
+        if not is_valid_cc:
+            return False, f"CC Email error: {msg_cc}"
+
     try:
         msg = Message(subject=subject, recipients=[recipient])
         if cc:

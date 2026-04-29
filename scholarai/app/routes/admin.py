@@ -790,13 +790,11 @@ def send_email(student_id='STU-001'):
         # AJAX support: return JSON if requested
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             if not success:
-                return jsonify({"success": False, "message": f"Failed: {error_msg}"}), 400
+                return jsonify({"success": False, "message": error_msg}), 400
             return jsonify({"success": True, "message": "Email sent successfully!"}), 200
 
         if not success:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({"success": False, "message": f"Failed: {error_msg}"}), 400
-            flash(f'Failed to send email via SMTP: {error_msg}', 'error')
+            flash(f'{error_msg}', 'error')
             return redirect(url_for('admin.send_email', student_id=student_id))
 
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

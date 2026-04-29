@@ -107,7 +107,7 @@
 
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for cat, msg in messages %}
-          <div class="alert {{ 'success' if cat == 'success' else 'danger' }}" style="margin-bottom:16px;">
+          <div class="alert {{ 'success' if cat == 'success' else 'danger' }} backend-flash" style="margin-bottom:16px; transition: opacity 0.5s ease;">
             <span class="alert__icon">{{ '✓' if cat == 'success' else '⚠' }}</span>
             <div class="alert__text"><strong>{{ msg }}</strong></div>
           </div>
@@ -204,11 +204,13 @@
     switchTab(urlTab);
   </script>
   <script>
+  let rtFlashTimeout = null;
   function showRtFlash(inputEl, msg) {
     document.querySelectorAll('.rt-flash').forEach(e => e.remove());
+    if (rtFlashTimeout) clearTimeout(rtFlashTimeout);
     if (msg) {
       const alertHtml = `
-        <div class="alert danger rt-flash" style="margin-bottom:16px;">
+        <div class="alert danger rt-flash" style="margin-bottom:16px; transition: opacity 0.5s ease;">
           <span class="alert__icon" style="font-size:14px; margin-right:6px;">⚠</span>
           <div class="alert__text"><strong>${msg}</strong></div>
         </div>
@@ -219,8 +221,24 @@
       } else {
         inputEl.parentNode.insertAdjacentHTML('afterbegin', alertHtml);
       }
+      const newFlash = document.querySelector('.rt-flash');
+      rtFlashTimeout = setTimeout(() => {
+          if (newFlash) {
+              newFlash.style.opacity = '0';
+              setTimeout(() => newFlash.remove(), 500);
+          }
+      }, 2000);
     }
   }
+
+  document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.backend-flash').forEach(alert => {
+          setTimeout(() => {
+              alert.style.opacity = '0';
+              setTimeout(() => alert.remove(), 500);
+          }, 2000);
+      });
+  });
 
   document.addEventListener('input', function(e) {
     const inputEl = e.target;
