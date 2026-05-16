@@ -1,3 +1,4 @@
+# This blueprint handles all routes specific to students, such as their performance dashboard and AI-powered academic predictions.
 import requests
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, flash
 from app.db import fetch_one, fetch_all, execute_dml
@@ -6,7 +7,7 @@ from app import ml_service
 
 student_bp = Blueprint('student', __name__)
 
-
+# This decorator ensures that only logged-in students can access certain pages within the student portal.
 def student_required(f):
     from functools import wraps
 
@@ -20,6 +21,7 @@ def student_required(f):
 
 
 # ── HELPER: Trend Analysis ──
+# Analyzes the score trend across terms to provide a personalized status update and message to the student.
 def calculate_trend(term1_score, term2_score, term3_score):
     diff1 = term2_score - term1_score
     diff2 = term3_score - term2_score
@@ -37,6 +39,7 @@ def calculate_trend(term1_score, term2_score, term3_score):
 
 
 # ── HELPER: Grade ──
+# Maps a numerical score to a standardized letter grade.
 def get_grade(score):
     if score >= 85:
         return 'A'
@@ -52,6 +55,7 @@ def get_grade(score):
         return 'F'
 
 
+# Helper to format dates consistently for display in the frontend.
 def _fmt_dt(value):
     if value is None:
         return ''
@@ -61,6 +65,7 @@ def _fmt_dt(value):
         return str(value)
 
 
+# Generates the next unique prediction ID by checking the highest existing ID in the database.
 def _next_prediction_id():
     row = fetch_one("""
         SELECT NVL(MAX(TO_NUMBER(SUBSTR(prediction_id, 5))), 0) + 1 AS next_id
@@ -70,6 +75,7 @@ def _next_prediction_id():
     return f"PRD-{int(row['next_id']):03d}"
 
 
+# Fetches and formats the core student profile data required for the student dashboard.
 def _get_student_dashboard_info(student_id):
     student = fetch_one("""
         SELECT
@@ -97,6 +103,7 @@ def _get_student_dashboard_info(student_id):
     return student
 
 
+# Constructs a personalized AI recommendation based on the student's academic metrics.
 def _build_ai_recommendation(subject_name, predicted_score, attendance_rate, trend,
                              student_name="Student", risk_level="medium",
                              term1_score=0, term2_score=0, term3_score=0):

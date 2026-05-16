@@ -1,3 +1,4 @@
+# This blueprint handles all administrator-specific routes, including the dashboard, student management, and reporting.
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from app.db import fetch_one, fetch_all, execute_dml
 from app.ai_service import generate_ai_recommendation
@@ -10,7 +11,7 @@ from app import ml_service
 
 admin_bp = Blueprint('admin', __name__)
 
-
+# This decorator ensures that only logged-in administrators can access certain pages.
 def admin_required(f):
     from functools import wraps
 
@@ -24,6 +25,7 @@ def admin_required(f):
 
 
 # ── HELPER: Trend Analysis ──
+# This function analyzes the scores across three terms to determine the performance trend of a student.
 def calculate_trend(term1_score, term2_score, term3_score):
     diff1 = term2_score - term1_score
     diff2 = term3_score - term2_score
@@ -41,7 +43,9 @@ def calculate_trend(term1_score, term2_score, term3_score):
 
 
 # ── HELPER: Risk Calculation (Step 2) ──
+# This function calculates the final risk level of a student based on academic, behavioral, financial, and attendance data.
 def calculate_final_risk(predicted_score, attendance_rate, complaint_count, due_amount, trend):
+    # Determine the base risk strictly from the predicted academic score.
     if predicted_score >= 75:
         base_risk = 'low'
     elif predicted_score >= 55:
@@ -49,6 +53,7 @@ def calculate_final_risk(predicted_score, attendance_rate, complaint_count, due_
     else:
         base_risk = 'high'
 
+    # Accumulate specific risk flags based on various performance and behavioral metrics.
     risk_flags = []
     if complaint_count >= 3:
         risk_flags.append('HIGH BEHAVIOR RISK')
@@ -73,6 +78,7 @@ def calculate_final_risk(predicted_score, attendance_rate, complaint_count, due_
     elif trend == 'unstable':
         risk_flags.append('UNSTABLE TREND')
 
+    # Escalation logic: upgrade the risk level if critical flags are present.
     high_flags = ['HIGH BEHAVIOR RISK', 'HIGH FINANCIAL RISK', 'CRITICAL ATTENDANCE', 'DECLINING TREND']
 
     if base_risk == 'low' and len(risk_flags) >= 2:
@@ -88,6 +94,7 @@ def calculate_final_risk(predicted_score, attendance_rate, complaint_count, due_
 
 
 # ── HELPER: Grade from score ──
+# Simple utility to map a numerical score to a letter grade.
 def get_grade(score):
     if score >= 85:
         return 'A'
@@ -155,22 +162,26 @@ def _next_report_id():
     return f"REP-{int(nxt):03d}"
 
 
+# The main dashboard for administrators. It displays school-wide statistics and a searchable student roster.
 @admin_bp.route('/dashboard')
 @admin_required
 def dashboard():
+    # Retrieve filtering and search parameters from the request query string.
     cls_filter = request.args.get('cls', '').strip()
     sec_filter = request.args.get('sec', '').strip()
     risk_filter = request.args.get('risk', '').strip()
     search_query = request.args.get('q', '').strip().lower()
 
-    # class_level is stored as e.g. 'Class 10', and the HTML dropdown passes this exact value.
+    # Normalize class filter value for database matching.
     cls_filter_val = cls_filter if cls_filter else None
 
+    # Handle pagination variables to control the number of students displayed per page.
     import math
     page = request.args.get('page', 1, type=int)
     per_page = 20
     offset = (page - 1) * per_page
 
+    # Fetch high-level overview statistics (total students, risk breakdown, average performance).
     stats = fetch_one("""
         SELECT
             COUNT(*) AS total,
@@ -181,7 +192,7 @@ def dashboard():
         FROM students
     """) or {"total": 0, "high": 0, "medium": 0, "low": 0, "avg_pi": 0}
 
-    # Count filtered total
+    # Count the total number of students that match the current filters for pagination logic.
     filtered_count_row = fetch_one("""
         SELECT COUNT(*) AS total_cnt
         FROM students
@@ -202,6 +213,7 @@ def dashboard():
     total_filtered = int(filtered_count_row['total_cnt'] if filtered_count_row else 0)
     total_pages = math.ceil(total_filtered / per_page) if total_filtered > 0 else 1
 
+    # Fetch the actual student records for the current page, applying filters and search criteria.
     students = fetch_all("""
         SELECT
             student_id,
@@ -233,7 +245,7 @@ def dashboard():
         "per_page": per_page
     })
 
-    # Fetch distinct classes and their sections dynamically from DB
+    # Dynamically fetch available classes and sections from the database to populate the filter dropdowns.
     class_rows = fetch_all("""
         SELECT DISTINCT class_level
         FROM students
@@ -256,7 +268,7 @@ def dashboard():
             class_sections[cl].append(sec)
     all_sections = sorted(set(row['section'] for row in section_rows))
 
-    # Count high risk students for bulk email JS
+    # Track high risk count specifically for triggering UI alerts or bulk email actions.
     high_risk_count = int(stats.get('high', 0))
 
     return render_template(
@@ -277,9 +289,11 @@ def dashboard():
     )
 
 
+# This route provides a comprehensive view of a single student's record, including academic performance, behavioral history, and risk assessment.
 @admin_bp.route('/student/<student_id>')
 @admin_required
 def student_details(student_id):
+    # Handle quick searches from the student details page.
     q = request.args.get('q', '').strip().lower()
 
     if q:
@@ -296,6 +310,7 @@ def student_details(student_id):
 
         flash(f'No student found matching "{request.args.get("q")}"', 'error')
 
+    # Fetch the core profile information for the specified student.
     student = fetch_one("""
         SELECT
             student_id,
@@ -316,7 +331,7 @@ def student_details(student_id):
         WHERE student_id = :sid
     """, {"sid": student_id})
 
-    # School-wide average PI for the detail page
+    # Calculate the school-wide average performance index for comparison.
     avg_row = fetch_one("""
         SELECT ROUND(AVG(NVL(performance_index, 0))) AS school_avg FROM students
     """) or {"school_avg": 0}
@@ -326,7 +341,7 @@ def student_details(student_id):
         flash('Student not found.', 'error')
         return redirect(url_for('admin.dashboard'))
 
-
+    # Retrieve all logged complaints for the student, ordered by the most recent.
     complaints = fetch_all("""
         SELECT
             complaint_id,
@@ -340,6 +355,7 @@ def student_details(student_id):
         ORDER BY recorded_at DESC
     """, {"sid": student_id})
 
+    # Fetch individual subject performance records and AI-generated recommendations.
     academic_record = fetch_all("""
         SELECT
             sub.subject_name,
@@ -357,6 +373,7 @@ def student_details(student_id):
         ORDER BY sub.subject_name
     """, {"sid": student_id})
 
+    # Fetch all risk-related flags identified during the last AI prediction cycle.
     risk_flags_rows = fetch_all("""
         SELECT DISTINCT pf.flag_name
         FROM predictions p
@@ -366,6 +383,7 @@ def student_details(student_id):
         ORDER BY pf.flag_name
     """, {"sid": student_id})
 
+    # Get the latest prediction trend and associated notes.
     latest_prediction = fetch_one("""
         SELECT
             trend,
@@ -381,6 +399,7 @@ def student_details(student_id):
         "trend_note": ""
     }
 
+    # Consolidate all fetched data into a single 'detail' dictionary for the template.
     detail = dict(student)
     detail["risk_flags"] = [r["flag_name"] for r in risk_flags_rows]
     detail["trend"] = latest_prediction["trend"]
@@ -407,7 +426,7 @@ def student_details(student_id):
     )
 
 
-
+# This route allows administrators to record a new behavioral or discipline complaint against a student.
 @admin_bp.route('/student/<student_id>/log-complaint', methods=['POST'])
 @admin_required
 def log_complaint(student_id):

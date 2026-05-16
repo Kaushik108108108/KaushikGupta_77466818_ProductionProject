@@ -1,3 +1,4 @@
+# This module handles all authentication-related tasks, including login, registration, and password resets for both admins and students.
 import hashlib
 import secrets
 from datetime import datetime, timedelta
@@ -8,12 +9,12 @@ from app.email_service import send_password_reset_email
 
 auth_bp = Blueprint('auth', __name__)
 
-
+# Utility function to securely hash passwords using the SHA-256 algorithm.
 def _hash_password(password: str) -> str:
     """Hash password with SHA-256."""
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-
+# Generates the next unique administrator ID (e.g., ADM-001).
 def _next_admin_id():
     row = fetch_one("""
         SELECT NVL(MAX(TO_NUMBER(REGEXP_SUBSTR(admin_id, '[0-9]+'))), 0) + 1 AS next_id
@@ -22,7 +23,7 @@ def _next_admin_id():
     """)
     return f"ADM-{int(row['next_id']):03d}"
 
-
+# Generates the next unique student ID (e.g., STU-001).
 def _next_student_id():
     row = fetch_one("""
         SELECT NVL(MAX(TO_NUMBER(REGEXP_SUBSTR(student_id, '[0-9]+'))), 0) + 1 AS next_id
@@ -31,12 +32,12 @@ def _next_student_id():
     """)
     return f"STU-{int(row['next_id']):03d}"
 
-
+# The main landing page of the application.
 @auth_bp.route('/')
 def index():
     return render_template('shared/index.html')
 
-
+# Handles the administrator login process, including credential verification and session management.
 @auth_bp.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
@@ -53,6 +54,7 @@ def admin_login():
         """, {"login": login, "hashed": hashed, "plain": password})
 
         if user:
+            # Set up the administrator's session upon successful login.
             session['admin_logged_in'] = True
             session['admin_id']   = user['admin_id']
             session['admin_user'] = user['username']
@@ -61,7 +63,7 @@ def admin_login():
 
         flash('Invalid username or password.', 'error')
 
-    # Live stats for hero panel
+    # Fetch live statistics to display on the login page's information panel.
     login_stats = fetch_one("""
         SELECT
             COUNT(*) AS total_students,
@@ -69,6 +71,7 @@ def admin_login():
         FROM students
     """) or {"total_students": 0, "high_risk_count": 0}
 
+    # Calculate current prediction accuracy for display.
     acc_row = fetch_one("""
         SELECT
             CASE WHEN COUNT(*) = 0 THEN 0
@@ -87,7 +90,7 @@ def admin_login():
         model_name="Model Accuracy"
     )
 
-
+# Handles the registration of new administrator accounts.
 @auth_bp.route('/admin/register', methods=['POST'])
 def admin_register():
     full_name = request.form.get('full_name', '').strip()
