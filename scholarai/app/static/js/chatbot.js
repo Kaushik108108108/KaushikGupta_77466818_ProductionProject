@@ -1,16 +1,17 @@
-/* ============================================================
-   ScholarAI — Chatbot AJAX handler
-   Works for both admin (/admin/chatbot/send)
-   and student (/student/chatbot/send)
-   ============================================================ */
+// This script handles the chatbot logic for both administrators and students.
+// It manages sending messages, showing the typing indicator, and formatting the AI's responses.
 document.addEventListener('DOMContentLoaded', function () {
+  // We start by finding the input field, the send button, and the message container on the page.
   const input = document.getElementById('chatInput');
   const sendBtn = document.getElementById('chatSend');
   const messages = document.getElementById('chatMessages');
   if (!input || !sendBtn || !messages) return;
 
+  // We determine if the user is an admin or a student to style the chat correctly.
   const role = typeof CHAT_ROLE !== 'undefined' ? CHAT_ROLE : 'admin';
   const apiUrl = typeof CHAT_API !== 'undefined' ? CHAT_API : '';
+
+  // This function cleans up the AI's response and formats things like bold text and links.
   function formatBotText(text) {
     let safeText = String(text || '').replace(/[&<>'"]/g, tag => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -30,8 +31,10 @@ document.addEventListener('DOMContentLoaded', function () {
     return safeText;
   }
 
+  // This function adds a new message to the chat window.
   function appendMsg(text, sender) {
     const d = document.createElement('div');
+    // We apply different styles depending on whether the user or the bot sent the message.
     d.className = `chat-msg ${sender}${sender === 'user' && role === 'student' ? ' student' : ''}`;
 
     if (sender === 'bot') {
@@ -48,15 +51,17 @@ document.addEventListener('DOMContentLoaded', function () {
       `;
     }
 
+    // After adding a message, we automatically scroll to the bottom so the user sees the latest text.
     messages.appendChild(d);
     messages.scrollTop = messages.scrollHeight;
   }
 
-  // Scroll to bottom immediately on load if backend supplied history
-  if (messages.children.length > 2) { // more than just the greeting
+  // If the page loads with previous messages, we make sure it's scrolled to the bottom.
+  if (messages.children.length > 2) {
     messages.scrollTop = messages.scrollHeight;
   }
 
+  // This shows a "Thinking..." message while we wait for the AI to respond.
   function showTyping() {
     const d = document.createElement('div');
     d.className = 'chat-msg bot';
@@ -69,15 +74,19 @@ document.addEventListener('DOMContentLoaded', function () {
     messages.scrollTop = messages.scrollHeight;
   }
 
+  // This removes the "Thinking..." message once the actual response arrives.
   function removeTyping() {
     const t = document.getElementById('typing-indicator');
     if (t) t.remove();
   }
 
+  // This is the core function that sends the user's message to the server.
   async function sendMessage() {
     const text = input.value.trim();
+    // We don't send anything if the input is empty.
     if (!text || !apiUrl) return;
 
+    // Show the user's message immediately and start the loading state.
     appendMsg(text, 'user');
     input.value = '';
     showTyping();
@@ -108,15 +117,18 @@ document.addEventListener('DOMContentLoaded', function () {
       appendMsg('Connection error. Please try again.', 'bot');
       console.error('Chat error:', err);
     } finally {
+      // Whether it succeeded or failed, we re-enable the send button.
       sendBtn.disabled = false;
     }
   }
 
+  // We listen for clicks on the send button or when the user presses the Enter key.
   sendBtn.addEventListener('click', sendMessage);
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') sendMessage();
   });
 
+  // If the user clicks on one of the suggested questions, we fill the input field for them.
   document.querySelectorAll('.chat-prompt-item').forEach(chip => {
     chip.addEventListener('click', function () {
       input.value = this.textContent.trim();

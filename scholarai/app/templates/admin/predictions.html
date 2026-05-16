@@ -1,3 +1,4 @@
+<!-- This page allows administrators to run academic performance predictions and view historical records. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,19 +12,19 @@
 <div class="page">
   {% with messages = get_flashed_messages(with_categories=true, category_filter=['prediction-success', 'prediction-error']) %}
   {% for cat, msg in messages %}
+    <!-- These alerts show the result of a prediction attempt. -->
     <div class="alert {% if 'success' in cat %}success{% else %}danger{% endif %}" style="margin-bottom:16px;">
-      <span class="alert__icon">{% if 'success' in cat %}✓{% else %}⚠{% endif %}</span>
       <div class="alert__text">{{ msg }}</div>
     </div>
   {% endfor %}
   {% endwith %}
 
-<!-- RUN PREDICTION MODAL -->
+<!-- This modal allows administrators to run a new performance prediction for a specific student. -->
 <div id="predModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
   <div style="background:var(--white);width:520px;max-width:90%;border-top:4px solid var(--blue);padding:28px 32px;box-sizing:border-box;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <div style="font-weight:700;font-size:16px;">Run New Prediction</div>
-      <button onclick="document.getElementById('predModal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">✕</button>
+      <button onclick="document.getElementById('predModal').style.display='none'" style="background:none;border:none;font-size:11px;font-weight:700;cursor:pointer;color:var(--text-lt);">CLOSE</button>
     </div>
     <form method="POST" action="{{ url_for('admin.run_prediction') }}" style="display:flex;flex-direction:column;gap:16px;">
       <div class="form-group" style="position:relative;">
@@ -33,7 +34,7 @@
         <div id="studentSearchDropdown" style="display:none; position:absolute; top:100%; left:0; width:100%; max-height:220px; overflow-y:auto; background:#fff; border:1px solid var(--border); border-radius:6px; z-index:1000; box-shadow:var(--shadow-lg);">
           {% for s in students %}
           <div class="custom-s-option" data-val="{{ s.student_id }}" data-search="{{ s.student_id|lower }} {{ s.full_name|lower }}" style="padding:10px 14px; cursor:pointer; font-size:13px; color:var(--text); border-bottom:1px solid var(--border); transition:background 0.2s;">
-            <strong style="color:var(--text-dk);">{{ s.student_id }}</strong> — {{ s.full_name }}
+            <strong style="color:var(--text-dk);">{{ s.student_id }}</strong> - {{ s.full_name }}
           </div>
           {% endfor %}
           <div id="noStudentMsg" style="display:none; padding:12px; font-size:13px; color:var(--text-lt); text-align:center;">No match found.</div>
@@ -67,7 +68,7 @@
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border);">
         <button type="button" onclick="document.getElementById('predModal').style.display='none'" class="btn btn-ghost">CANCEL</button>
-        <button type="submit" class="btn btn-primary">RUN PREDICTION →</button>
+        <button type="submit" class="btn btn-primary">RUN PREDICTION</button>
       </div>
     </form>
   </div>
@@ -81,8 +82,9 @@
     <div class="section-head">
       <div class="section-head__left"><div class="section-head__bar"></div><span class="section-head__title">All Prediction Records</span></div>
       <div class="section-head__actions">
-  <button class="btn btn-primary sm" onclick="document.getElementById('predModal').style.display='flex'">+ RUN NEW PREDICTION</button>
-  <a href="{{ url_for('admin.export_predictions') }}"><button class="btn btn-ghost sm">📄 EXPORT ALL</button></a>
+  <!-- This button opens the prediction window. -->
+  <button class="btn btn-primary sm" onclick="document.getElementById('predModal').style.display='flex'">RUN NEW PREDICTION</button>
+  <a href="{{ url_for('admin.export_predictions') }}"><button class="btn btn-ghost sm">EXPORT ALL</button></a>
 </div>
     </div>
     <div class="table-responsive">
@@ -111,9 +113,9 @@
       <span class="mono fs-11 text-muted">Showing {{ predictions|length }} of {{ total_filtered }} records</span>
       <div class="pagination">
         {% if page > 1 %}
-        <a href="{{ url_for('admin.predictions', page=page-1) }}" style="text-decoration:none;"><button class="page-btn">←</button></a>
+        <a href="{{ url_for('admin.predictions', page=page-1) }}" style="text-decoration:none;"><button class="page-btn">PREVIOUS</button></a>
         {% else %}
-        <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">←</button>
+        <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">PREVIOUS</button>
         {% endif %}
         
         {% for p_num in range(1, total_pages + 1) %}
@@ -125,9 +127,9 @@
         {% endfor %}
         
         {% if page < total_pages %}
-        <a href="{{ url_for('admin.predictions', page=page+1) }}" style="text-decoration:none;"><button class="page-btn">→</button></a>
+        <a href="{{ url_for('admin.predictions', page=page+1) }}" style="text-decoration:none;"><button class="page-btn">NEXT</button></a>
         {% else %}
-        <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">→</button>
+        <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">NEXT</button>
         {% endif %}
       </div>
     </div>
@@ -147,53 +149,55 @@ document.addEventListener("DOMContentLoaded", () => {
   const sOptions = document.querySelectorAll('.custom-s-option');
   const sNoMsg = document.getElementById('noStudentMsg');
   
-  if (sInput) {
-    sInput.addEventListener('focus', () => { sDropdown.style.display = 'block'; });
-    sInput.addEventListener('click', () => { sDropdown.style.display = 'block'; });
+    // This script manages the search functionality within the prediction window.
+    if (sInput) {
+      sInput.addEventListener('focus', () => { sDropdown.style.display = 'block'; });
+      sInput.addEventListener('click', () => { sDropdown.style.display = 'block'; });
 
-    document.addEventListener('click', (e) => {
-      if(!sInput.contains(e.target) && !sDropdown.contains(e.target)) {
-        sDropdown.style.display = 'none';
-      }
-    });
+      document.addEventListener('click', (e) => {
+        if(!sInput.contains(e.target) && !sDropdown.contains(e.target)) {
+          sDropdown.style.display = 'none';
+        }
+      });
 
-    sInput.addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase();
-      let hasMatch = false;
-      sHidden.value = ''; // reset real value if user starts typing a new query
-      sInput.style.borderColor = "";
-      
+      sInput.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        let hasMatch = false;
+        sHidden.value = ''; // reset real value if user starts typing a new query
+        sInput.style.borderColor = "";
+        
+        sOptions.forEach(opt => {
+          if(opt.dataset.search.includes(q)) {
+            opt.style.display = 'block';
+            hasMatch = true;
+          } else {
+            opt.style.display = 'none';
+          }
+        });
+        sNoMsg.style.display = hasMatch ? 'none' : 'block';
+      });
+
       sOptions.forEach(opt => {
-        if(opt.dataset.search.includes(q)) {
-          opt.style.display = 'block';
-          hasMatch = true;
-        } else {
-          opt.style.display = 'none';
-        }
+        opt.addEventListener('click', () => {
+          sInput.value = opt.innerText.trim();
+          sHidden.value = opt.dataset.val;
+          sDropdown.style.display = 'none';
+          sInput.style.borderColor = "var(--green)";
+        });
       });
-      sNoMsg.style.display = hasMatch ? 'none' : 'block';
-    });
 
-    sOptions.forEach(opt => {
-      opt.addEventListener('click', () => {
-        sInput.value = opt.innerText.trim();
-        sHidden.value = opt.dataset.val;
-        sDropdown.style.display = 'none';
-        sInput.style.borderColor = "var(--green)";
-      });
-    });
-
-    const pForm = sInput.closest('form');
-    if (pForm) {
-      pForm.addEventListener('submit', (e) => {
-        if (!sHidden.value) {
-          e.preventDefault();
-          sInput.style.borderColor = "var(--red)";
-          alert("Please select a student from the dropdown list by clicking on their name.");
-        }
-      });
+      const pForm = sInput.closest('form');
+      if (pForm) {
+        pForm.addEventListener('submit', (e) => {
+          // We make sure a student was actually selected before the form can be sent.
+          if (!sHidden.value) {
+            e.preventDefault();
+            sInput.style.borderColor = "var(--red)";
+            alert("Please select a student from the dropdown list by clicking on their name.");
+          }
+        });
+      }
     }
-  }
 });
 </script>
 </body>

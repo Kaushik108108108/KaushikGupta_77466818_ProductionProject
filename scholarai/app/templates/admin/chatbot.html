@@ -6,22 +6,24 @@
   <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
 </head>
-<body data-role="admin">
+<!-- This is the main admin chatbot page. It allows administrators to interact with the AI assistant. -->
 {% set active = 'chatbot' %}{% include 'shared/nav_admin.html' with context %}
 <div class="page">
   <div class="chat-wrap">
     <div class="chat-main">
       <div class="chat-window">
-        <div class="chat-header">
+          <!-- The header shows the assistant's name and its connection status to the database. -->
           <div class="chat-ai-icon admin">AI</div>
-          <div><div class="chat-name">ScholarAI Admin Assistant</div><div class="chat-status">● ONLINE — Student database connected</div></div>
+          <div><div class="chat-name">ScholarAI Admin Assistant</div><div class="chat-status">ONLINE — Student database connected</div></div>
           <div class="chat-session">Session: {{ session.get("admin_id", "ADM-001") }}</div>
         </div>
+        <!-- This section holds all the chat messages, starting with a friendly greeting. -->
         <div class="chat-messages" id="chatMessages">
           <div class="chat-msg bot">
             <div class="chat-msg__avatar admin">AI</div>
-            <div class="chat-msg__bubble">Hello Admin! I can help with student risk analysis, performance summaries, bulk email composition, and prediction reports. What do you need?</div>
+            <div class="chat-msg__bubble">Hello Admin! I'm here to help you support our students. You can ask me about risk analysis, performance summaries, or how we can best assist students today. How can I help?</div>
           </div>
+          <!-- We loop through any existing messages in this session to show the conversation history. -->
           {% if active_messages %}
             {% for msg in active_messages %}
             <div class="chat-msg {% if msg.sender_type == 'USER' %}user{% else %}bot{% endif %}">
@@ -31,26 +33,29 @@
             {% endfor %}
           {% endif %}
         </div>
+        <!-- The input area where the admin can type their questions. -->
         <div class="chat-input-row">
           <input class="chat-input" id="chatInput" placeholder="Ask about students, risks, predictions..."/>
-          <button class="chat-send admin" id="chatSend">SEND →</button>
+          <button class="chat-send admin" id="chatSend">SEND</button>
         </div>
       </div>
     </div>
     <div class="chat-sidebar">
+      <!-- These are quick links for common questions admins might have. -->
       <div class="card mb-0">
-        <div class="form-label mb-12">Quick Prompts</div>
-        <div class="chat-prompt-item">Show all high-risk students</div>
-        <div class="chat-prompt-item">Students with dues &gt; ₹3,000</div>
-        <div class="chat-prompt-item">Which class has worst attendance?</div>
-        <div class="chat-prompt-item">Predict next term outcomes</div>
-        <div class="chat-prompt-item">Generate risk summary report</div>
-        <div class="chat-prompt-item">Draft bulk warning email</div>
+        <div class="form-label mb-12">Suggested Questions</div>
+        <div class="chat-prompt-item">How can I support high-risk students today?</div>
+        <div class="chat-prompt-item">Suggest interventions for students with dues</div>
+        <div class="chat-prompt-item">Which class needs the most academic support?</div>
+        <div class="chat-prompt-item">What are the predicted outcomes for next term?</div>
+        <div class="chat-prompt-item">Draft an encouraging email for students</div>
+        <div class="chat-prompt-item">Generate a student support strategy report</div>
       </div>
+      <!-- This sidebar list shows the history of previous chat sessions. -->
       <div class="card mb-0">
         <div class="flex-between mb-12">
           <div class="form-label mb-0">Chat History</div>
-          <a href="{{ url_for('admin.chatbot', new='true') }}" class="fs-12 text-blue fw-600" style="text-decoration:none;">+ New Chat</a>
+          <a href="{{ url_for('admin.chatbot', new='true') }}" class="fs-12 text-blue fw-600" style="text-decoration:none;">New Chat</a>
         </div>
         <div class="chat-history-list">
           {% for h in chat_session %}
@@ -59,7 +64,8 @@
               <div class="chat-history-topic">{{ h.topic or 'New conversation' }}{{ '…' if h.topic and h.topic|length >= 40 else '' }}</div>
               <div class="chat-history-date">{{ h.session_date or '' }}</div>
             </a>
-            <button class="chat-history-delete" title="Delete chat" onclick="event.preventDefault(); event.stopPropagation(); if(confirm('Delete this chat session?')) window.location.href='{{ url_for('admin.delete_chat_session', session_id=h.session_id) }}'">🗑</button>
+            <!-- We provide a delete button for each past session. -->
+            <button class="chat-history-delete" title="Delete chat" onclick="event.preventDefault(); event.stopPropagation(); if(confirm('Delete this chat session?')) window.location.href='{{ url_for('admin.delete_chat_session', session_id=h.session_id) }}'">Delete</button>
           </div>
           {% endfor %}
           {% if not chat_session %}
@@ -67,6 +73,7 @@
           {% endif %}
         </div>
       </div>
+      <!-- A quick glance at the current risk status across the school. -->
       <div class="card mb-0">
         <div class="form-label mb-12">System Stats</div>
         <div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border);">
@@ -82,6 +89,7 @@
     </div>
   </div>
 </div>
+<!-- We define the API endpoint for sending messages and load the necessary scripts. -->
 <script>
 const CHAT_API = "{{ url_for('admin.chatbot_send') }}";
 </script>

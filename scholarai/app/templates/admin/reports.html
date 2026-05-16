@@ -1,3 +1,4 @@
+<!-- This page manages the generation and viewing of academic, financial, and behavioral reports. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -103,8 +104,8 @@
 
   {% with messages = get_flashed_messages(with_categories=true, category_filter=['report-success', 'report-error']) %}
   {% for cat, msg in messages %}
+  <!-- These alerts show if a report was successfully created or if something went wrong. -->
   <div class="alert {{ 'success' if 'success' in cat else 'danger' }}" style="margin-bottom:24px; animation: slideDown 0.3s ease-out;">
-    <span class="alert__icon">{{ '✓' if 'success' in cat else '⚠' }}</span>
     <div class="alert__text"><strong>{{ msg }}</strong></div>
   </div>
   {% endfor %}
@@ -112,7 +113,8 @@
   <div class="card mb-0">
     <div class="section-head">
       <div class="section-head__left"><div class="section-head__bar"></div><span class="section-head__title">Generated Reports</span></div>
-      <div class="section-head__actions"><button class="btn btn-primary sm" onclick="generateReport()">+ GENERATE REPORT</button></div>
+      <!-- This button opens the window to create a new report. -->
+      <div class="section-head__actions"><button class="btn btn-primary sm" onclick="generateReport()">GENERATE REPORT</button></div>
     </div>
     <div class="table-responsive">
       <table class="data-table">
@@ -136,10 +138,10 @@
                 <a href="{{ url_for('admin.reports', view_id=r.report_id) }}#detail-section" class="btn btn-outline sm">VIEW</a>
                 
                 {% if r.status == 'REVIEW' %}
-                <a href="{{ url_for('admin.update_report_status', report_id=r.report_id, new_status='PUBLISHED') }}" class="btn btn-primary sm" title="APPROVE" style="padding:4px 10px; font-weight:bold;">✓</a>
-                <a href="{{ url_for('admin.update_report_status', report_id=r.report_id, new_status='ESCALATED') }}" class="btn btn-danger sm" title="ESCALATE" style="padding:4px 10px; font-weight:bold;">!</a>
+                <a href="{{ url_for('admin.update_report_status', report_id=r.report_id, new_status='PUBLISHED') }}" class="btn btn-primary sm" title="APPROVE" style="padding:4px 10px; font-weight:bold;">APPROVE</a>
+                <a href="{{ url_for('admin.update_report_status', report_id=r.report_id, new_status='ESCALATED') }}" class="btn btn-danger sm" title="ESCALATE" style="padding:4px 10px; font-weight:bold;">ESCALATE</a>
                 {% endif %}
-                <a href="{{ url_for('admin.delete_report', report_id=r.report_id) }}" class="btn btn-ghost sm" title="DELETE" onclick="return confirm('Delete this report permanently?')" style="color:var(--risk-high); padding:4px 8px;">×</a>
+                <a href="{{ url_for('admin.delete_report', report_id=r.report_id) }}" class="btn btn-ghost sm" title="DELETE" onclick="return confirm('Delete this report permanently?')" style="color:var(--risk-high); padding:4px 8px;">DELETE</a>
             </div>
           </td>
         </tr>
@@ -321,7 +323,7 @@
 <div class="modal" id="generateReportModal">
     <div class="modal__backdrop" onclick="closeModal()"></div>
     <div class="modal__content">
-        <div class="modal__close" onclick="closeModal()">×</div>
+        <div class="modal__close" onclick="closeModal()">CLOSE</div>
         <h3 class="modal__title">Generate New Report</h3>
         <form action="{{ url_for('admin.generate_report') }}" method="POST" class="grid" style="gap:16px;">
             <div class="form-group">
@@ -361,6 +363,7 @@
 
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 <script>
+// This script handles opening and closing the report generation window.
 function generateReport() {
     document.getElementById('generateReportModal').classList.add('open');
 }
@@ -369,6 +372,7 @@ function closeModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // We prevent users from selecting future dates for their reports.
     const today = new Date().toISOString().split('T')[0];
     const startInput = document.querySelector('input[name="date_start"]');
     const endInput = document.querySelector('input[name="date_end"]');

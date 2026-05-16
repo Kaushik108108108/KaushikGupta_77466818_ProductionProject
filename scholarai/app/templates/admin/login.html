@@ -1,3 +1,4 @@
+<!-- This page allows administrators to sign in to their dashboard or create a new account. -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -107,8 +108,8 @@
 
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for cat, msg in messages %}
+          <!-- These alerts provide feedback after a login or registration attempt. -->
           <div class="alert {{ 'success' if cat == 'success' else 'danger' }} backend-flash" style="margin-bottom:16px; transition: opacity 0.5s ease;">
-            <span class="alert__icon">{{ '✓' if cat == 'success' else '⚠' }}</span>
             <div class="alert__text"><strong>{{ msg }}</strong></div>
           </div>
         {% endfor %}
@@ -133,11 +134,11 @@
             <a href="{{ url_for('auth.forgot_password') }}" style="font-size: 11px; color: var(--gray); text-decoration: none; margin-top: 2px; text-align: right; display: block;">Forgot credentials?</a>
           </div>
           <button type="submit" class="btn btn-primary full"
-            style="padding:13px;font-size:14px;letter-spacing:0.05em;margin-top:8px;">SIGN IN TO DASHBOARD →</button>
+            style="padding:13px;font-size:14px;letter-spacing:0.05em;margin-top:8px;">SIGN IN TO DASHBOARD</button>
           <div style="border-top:1px solid var(--navy-lt);padding-top:18px;text-align:center;">
             <span style="font-size:12px;color:var(--gray);">Are you a student? </span>
             <a href="{{ url_for('auth.student_login') }}"
-              style="font-size:12px;color:var(--blue);font-weight:600;">Student Portal →</a>
+              style="font-size:12px;color:var(--blue);font-weight:600;">Student Portal</a>
           </div>
         </form>
       </div>
@@ -178,12 +179,12 @@
             </div>
           </div>
           <button type="submit" class="btn btn-primary full"
-            style="padding:11px;font-size:13px;letter-spacing:0.05em;margin-top:4px;">CREATE ADMIN ACCOUNT →</button>
+            style="padding:11px;font-size:13px;letter-spacing:0.05em;margin-top:4px;">CREATE ADMIN ACCOUNT</button>
           <div style="border-top:1px solid var(--navy-lt);padding-top:12px;text-align:center;">
             <span style="font-size:12px;color:var(--gray);">Already have an account? </span>
             <button type="button" onclick="switchTab('signin')"
               style="background:none;border:none;font-size:12px;color:var(--blue);font-weight:600;cursor:pointer;">Sign
-              In →</button>
+              In</button>
           </div>
         </form>
       </div>
@@ -191,6 +192,7 @@
   </div>
 
   <script>
+    // This script allows users to switch between the 'Sign In' and 'Register' views.
     function switchTab(tab) {
       document.getElementById('panel-signin').classList.remove('active');
       document.getElementById('panel-register').classList.remove('active');
@@ -199,7 +201,7 @@
       document.getElementById('panel-' + tab).classList.add('active');
       document.getElementById('tab-' + tab).classList.add('active');
     }
-    // Read ?tab= from URL to auto-open the right panel
+    // We check the URL to see which panel should be open when the page loads.
     const urlTab = new URLSearchParams(window.location.search).get('tab') || 'signin';
     switchTab(urlTab);
   </script>
@@ -209,9 +211,9 @@
     document.querySelectorAll('.rt-flash').forEach(e => e.remove());
     if (rtFlashTimeout) clearTimeout(rtFlashTimeout);
     if (msg) {
+      // This helper function shows real-time validation messages as the user types.
       const alertHtml = `
         <div class="alert danger rt-flash" style="margin-bottom:16px; transition: opacity 0.5s ease;">
-          <span class="alert__icon" style="font-size:14px; margin-right:6px;">⚠</span>
           <div class="alert__text"><strong>${msg}</strong></div>
         </div>
       `;

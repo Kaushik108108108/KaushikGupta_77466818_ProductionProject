@@ -586,12 +586,15 @@ def delete_chat_session(session_id):
     return redirect(url_for('student.chatbot'))
 
 
+# This route handles sending messages to the student chatbot.
+# We first grab the message from the user's request.
 @student_bp.route('/chatbot/send', methods=['POST'])
 @student_required
 def chatbot_send():
     payload = request.get_json(silent=True) or {}
     msg = (payload.get('message') or '').strip()
 
+    # We make sure the user actually typed something before proceeding.
     if not msg:
         return jsonify({'reply': 'Please enter a message.'}), 400
 
@@ -644,42 +647,43 @@ def chatbot_send():
             SELECT sub.subject_name, ar.predicted_score, ar.trend_label
             FROM student_academic_records ar
             JOIN subjects sub ON sub.subject_id = ar.subject_id
-            WHERE ar.student_id = :sid
+        WHERE ar.student_id = :sid
             ORDER BY ar.predicted_score ASC
             FETCH FIRST 3 ROWS ONLY
         """, {"sid": sid})
         
         perf_list = "\n".join([f"- {a['subject_name']}: {a['predicted_score']}% ({a['trend_label']})" for a in academic_summary])
         
+        # This is the guide for the student chatbot, giving it a friendly persona and access to the student's data.
         system_prompt = f"""
-            You are ScholarAI Student Assistant. You are chatting with {name} (ID: {sid}).
-            Ground your answers in their personal data:
-            - Performance Index: {student['performance_index'] if student else 0}%
-            - Risk Level: {student['risk_level'] if student else 'Low'}
-            - Attendance Rate: {student['attendance_rate'] if student else 0}%
-            - Pending Dues: ₹{student['due_amount'] if student else 0}
-            - Open Complaints: {student['complaint_count'] if student else 0}
-            
-            Their weak subjects needing attention:
-            {perf_list if academic_summary else 'No data yet.'}
-            
-            Be helpful, encouraging, and clear. 
-            When providing resources for motivation, study habits, or academics, ONLY USE the exact links provided in the VERIFIED RESOURCE LIBRARY below. Do NOT make up or hallucinate any other URLs, as they will break.
+You are the ScholarAI Student Assistant. You are chatting with {name} (ID: {sid}).
+Ground your answers in their personal data:
+- Performance Index: {student['performance_index'] if student else 0}%
+- Risk Level: {student['risk_level'] if student else 'Low'}
+- Attendance Rate: {student['attendance_rate'] if student else 0}%
+- Pending Dues: Rs. {student['due_amount'] if student else 0}
+- Open Complaints: {student['complaint_count'] if student else 0}
 
-            === VERIFIED RESOURCE LIBRARY ===
-            *Motivation & Study Habits (Exact Videos):*
-            - Tim Urban: Inside the mind of a master procrastinator - https://www.youtube.com/watch?v=arj7oStGLkU
-            - Angela Duckworth: Grit: the power of passion and perseverance - https://www.youtube.com/watch?v=H14bBuluwB8
-            - Ali Abdaal: How to study for exams - Evidence-based revision tips - https://www.youtube.com/watch?v=ukLnPbIffxE
-            - Matt D'Avella: How to stop procrastinating - https://www.youtube.com/watch?v=km4pOGd_lHw
+Their weak subjects needing attention:
+{perf_list if academic_summary else 'No data yet.'}
 
-            *Academic Channels:*
-            - Khan Academy (Math/Science) - https://www.youtube.com/c/khanacademy
-            - CrashCourse (General Topics) - https://www.youtube.com/user/crashcourse
-            - MIT OpenCourseWare - https://www.youtube.com/c/mitocw
-        """
+Be helpful, encouraging, and clear. 
+When providing resources for motivation, study habits, or academics, ONLY USE the exact links provided in the VERIFIED RESOURCE LIBRARY below. Do NOT make up any other URLs.
 
-        # 2. Fetch history
+VERIFIED RESOURCE LIBRARY
+Motivation and Study Habits (Exact Videos):
+- Tim Urban: Inside the mind of a master procrastinator - https://www.youtube.com/watch?v=arj7oStGLkU
+- Angela Duckworth: Grit: the power of passion and perseverance - https://www.youtube.com/watch?v=H14bBuluwB8
+- Ali Abdaal: How to study for exams - Evidence-based revision tips - https://www.youtube.com/watch?v=ukLnPbIffxE
+- Matt D'Avella: How to stop procrastinating - https://www.youtube.com/watch?v=km4pOGd_lHw
+
+Academic Channels:
+- Khan Academy (Math/Science) - https://www.youtube.com/c/khanacademy
+- CrashCourse (General Topics) - https://www.youtube.com/user/crashcourse
+- MIT OpenCourseWare - https://www.youtube.com/c/mitocw
+"""
+
+        # We pull the last few messages in this session to maintain the context of the conversation.
         history_rows = fetch_all("""
             SELECT sender_type, message_text 
             FROM chat_messages 
@@ -700,7 +704,7 @@ def chatbot_send():
         system_prompt = f"You are ScholarAI Student Assistant for {name}."
         history_list = []
 
-    # Insert the user message AFTER history is fetched
+    # We save the student's question into our database records.
     execute_dml("""
         INSERT INTO chat_messages (session_id, sender_type, message_text)
         VALUES (:session_id, 'USER', :message_text)
@@ -709,6 +713,7 @@ def chatbot_send():
         "message_text": msg
     })
 
+    # We send the question and context to our AI service and wait for a response.
     try:
         res = requests.post(
             "http://127.0.0.1:8000/chat",
@@ -730,6 +735,7 @@ def chatbot_send():
     except Exception as e:
         reply = f'Connection error: {str(e)}'
 
+    # Finally, we save the AI's reply and send it back to the student's dashboard.
     execute_dml("""
         INSERT INTO chat_messages (session_id, sender_type, message_text)
         VALUES (:session_id, 'BOT', :message_text)

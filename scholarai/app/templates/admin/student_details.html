@@ -1,3 +1,4 @@
+<!-- This page shows everything we know about a specific student, including their grades, risk level, and behavioral records. -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -37,23 +38,23 @@
       <span class="breadcrumb__sep">›</span>
       <span class="breadcrumb__current">{{ student.student_id }} — {{ student.full_name|upper }}</span>
       <div class="breadcrumb__actions">
+        <!-- Search bar to quickly find another student by their name or ID. -->
         <form method="GET" action="{{ url_for('admin.student_details', student_id=student.student_id) }}"
           class="breadcrumb__search">
           <input type="text" name="q" value="{{ search_query|default('') }}"
             placeholder="Search student by name or ID..." required />
-          <button type="submit" class="btn btn-primary sm">🔍 SEARCH</button>
+          <button type="submit" class="btn btn-primary sm">SEARCH</button>
         </form>
-        <a href="{{ url_for('admin.dashboard') }}"><button class="btn btn-ghost sm">← BACK</button></a>
-        <a href="{{ url_for('admin.send_email', student_id=student.student_id) }}"><button class="btn btn-primary sm">📧
-            SEND EMAIL</button></a>
-        <button class="btn btn-dark sm" onclick="window.print()">📄 EXPORT PDF</button>
+        <a href="{{ url_for('admin.dashboard') }}"><button class="btn btn-ghost sm">BACK</button></a>
+        <a href="{{ url_for('admin.send_email', student_id=student.student_id) }}"><button class="btn btn-primary sm">SEND EMAIL</button></a>
+        <button class="btn btn-dark sm" onclick="window.print()">EXPORT PDF</button>
       </div>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
+    <!-- These alerts show success or error messages after updating student details. -->
     <div class="alert {% if cat == 'success' %}success{% else %}danger{% endif %}" style="margin-bottom:16px;">
-      <span class="alert__icon">{% if cat == 'success' %}✓{% else %}⚠{% endif %}</span>
       <div class="alert__text">{{ msg }}</div>
     </div>
     {% endfor %}
@@ -97,10 +98,11 @@
         <div class="detail-box__big-sub">{{ student.complaint|length }} complaint(s) on record</div>
         {% if student.due_amount > 0 %}
         <div style="margin-top:12px;">
+          <!-- Button to clear any outstanding financial dues. -->
           <form action="{{ url_for('admin.clear_dues', student_id=student.student_id) }}" method="POST"
             onsubmit="return confirm('Are you sure you want to clear all outstanding dues for this student?')">
             <button type="submit" class="btn btn-primary sm"
-              style="background:var(--blue);border:none;padding:5px 12px;font-size:11px;">✓ CLEAR DUE</button>
+              style="background:var(--blue);border:none;padding:5px 12px;font-size:11px;">CLEAR DUE</button>
           </form>
         </div>
         {% endif %}
@@ -114,12 +116,12 @@
           <div class="section-head__bar"></div><span class="section-head__title">Behavior &amp; Complaint History</span>
         </div>
         <div class="section-head__actions" style="display:flex;gap:8px;">
+          <!-- Buttons to manage behavioral records. -->
           <button class="btn btn-ghost sm"
             onclick="document.getElementById('resolveComplaintModal').style.display='flex'">
-            <span style="margin-right:4px;">✓</span> RESOLVE COMPLAINTS
+            RESOLVE COMPLAINTS
           </button>
-          <button class="btn btn-amber sm" onclick="document.getElementById('complaintModal').style.display='flex'">+
-            LOG COMPLAINT</button>
+          <button class="btn btn-amber sm" onclick="document.getElementById('complaintModal').style.display='flex'">LOG COMPLAINT</button>
         </div>
       </div>
       <div class="flex gap-12 scroll-x">
@@ -140,12 +142,12 @@
         {% if open_complaints|length == 0 %}
         <div
           style="flex:0 0 300px;background:var(--green-lt);border:1px dashed var(--green);padding:20px;display:flex;align-items:center;justify-content:center;color:var(--green);font-weight:600;font-size:13px;min-height:100px;">
-          ✓ No active complaints
+          No active complaints
         </div>
         {% elif open_complaints|length < 3 %} <div
           onclick="document.getElementById('complaintModal').style.display='flex'"
           style="flex:0 0 300px;background:var(--green-lt);border:1px dashed var(--green);padding:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--green);font-weight:600;font-size:13px;min-height:100px;">
-          + Log a new record
+          Log a new record
       </div>
       {% endif %}
     </div>
@@ -192,10 +194,10 @@
           <td><span
               class="mono fw-800 {% if sub.predicted_score < 60 %}text-red{% elif sub.predicted_score < 75 %}text-amber{% else %}text-green{% endif %}">{{
               sub.predicted_score }}</span></td>
-          <td>
-            {% if sub.predicted_score > sub.term3_score %}<span class="trend-up">▲ {{ sub.predicted_score -
+           <td>
+            {% if sub.predicted_score > sub.term3_score %}<span class="trend-up">UP {{ sub.predicted_score -
               sub.term3_score }}</span>
-            {% else %}<span class="trend-down">▼ {{ sub.term3_score - sub.predicted_score }}</span>{% endif %}
+            {% else %}<span class="trend-down">DOWN {{ sub.term3_score - sub.predicted_score }}</span>{% endif %}
           </td>
           <td class="text-muted fs-12">{{ sub.ai_recommendation }}</td>
         </tr>
@@ -207,9 +209,10 @@
 
   <!-- ACTION BUTTONS -->
   <div class="fixed-actions">
-    <button class="btn btn-primary sm" onclick="openUpdateModal()">✎ UPDATE DETAILS</button>
+    <!-- Buttons to either update or permanently remove a student record. -->
+    <button class="btn btn-primary sm" onclick="openUpdateModal()">UPDATE DETAILS</button>
     <form action="{{ url_for('admin.delete_student', student_id=student.student_id) }}" method="POST" id="deleteForm" style="display:inline;">
-      <button type="button" class="btn btn-danger sm" onclick="confirmDelete()">🗑 DELETE STUDENT</button>
+      <button type="button" class="btn btn-danger sm" onclick="confirmDelete()">DELETE STUDENT</button>
     </form>
   </div>
   </div>
@@ -225,7 +228,7 @@
           <span class="section-head__title">Log New Complaint — {{ student.student_id }}</span>
         </div>
         <button onclick="document.getElementById('complaintModal').style.display='none'"
-          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">✕</button>
+          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">CLOSE</button>
       </div>
 
       <form action="{{ url_for('admin.log_complaint', student_id=student.student_id) }}" method="POST">
@@ -286,7 +289,7 @@
           <span class="section-head__title">Resolve Complaints — {{ student.student_id }}</span>
         </div>
         <button onclick="document.getElementById('resolveComplaintModal').style.display='none'"
-          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">✕</button>
+          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">CLOSE</button>
       </div>
 
       <div style="overflow-y:auto;flex-grow:1;padding-right:8px;">
@@ -316,7 +319,7 @@
                   action="{{ url_for('admin.resolve_complaint', student_id=student.student_id, complaint_id=c.complaint_id) }}"
                   method="POST" style="margin:0;" onsubmit="return confirm('Mark this complaint as resolved?')">
                   <button type="submit" class="btn btn-primary sm"
-                    style="background:var(--green);border:none;padding:4px 10px;font-size:11px;">✓ RESOLVE</button>
+                    style="background:var(--green);border:none;padding:4px 10px;font-size:11px;">RESOLVE</button>
                 </form>
               </td>
             </tr>
@@ -352,7 +355,7 @@
           <span class="section-head__title">Update Student Records — {{ student.student_id }}</span>
         </div>
         <button onclick="closeUpdateModal()"
-          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">✕</button>
+          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-lt);">CLOSE</button>
       </div>
 
       <form action="{{ url_for('admin.update_student', student_id=student.student_id) }}" method="POST">
@@ -423,9 +426,9 @@
   function showRtFlash(inputEl, msg) {
     document.querySelectorAll('.rt-flash').forEach(e => e.remove());
     if (msg) {
+      // This helper function shows a real-time validation error next to the input field.
       const alertHtml = `
         <div class="alert danger rt-flash" style="margin-bottom:8px; padding:6px 10px; font-size:12px; width: 100%;">
-          <span class="alert__icon" style="font-size:14px; margin-right:6px;">⚠</span>
           <div class="alert__text"><strong>${msg}</strong></div>
         </div>
       `;

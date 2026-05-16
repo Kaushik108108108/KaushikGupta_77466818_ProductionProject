@@ -1,3 +1,4 @@
+# This script handles the intelligence of our application, including predicting student scores and analyzing academic trends.
 import json
 from datetime import date
 from pathlib import Path
@@ -12,6 +13,7 @@ MODEL_PATH = ARTIFACT_DIR / "scholarai_academic_score_pipeline.joblib"
 META_PATH = ARTIFACT_DIR / "scholarai_model_metadata.json"
 RULES_PATH = ARTIFACT_DIR / "scholarai_business_rules.json"
 
+# We define some default rules for determining a student's risk level and suggesting next steps.
 DEFAULT_RULES = {
     "risk_thresholds": {
         "low_min_score": 75,
@@ -65,12 +67,15 @@ def _read_json(path: Path, default: dict):
     return default
 
 
+# This internal function loads our machine learning model and settings from files on the server.
 def _load_artifacts():
     global _model, _metadata, _rules, _model_load_error
+    # We load the metadata and rules if they haven't been loaded yet.
     if _metadata is None:
         _metadata = _read_json(META_PATH, DEFAULT_METADATA.copy())
     if _rules is None:
         _rules = _read_json(RULES_PATH, DEFAULT_RULES.copy())
+    # We try to load the actual predictive model if it exists.
     if _model is None and MODEL_PATH.exists() and _model_load_error is None:
         try:
             _model = joblib.load(MODEL_PATH)
@@ -111,16 +116,21 @@ def get_model_confidence_pct(default: int = 82):
     return int(default)
 
 
+# If our fancy model isn't available, we use this simple formula to estimate a student's score.
 def _formula_fallback(attendance_rate, term1_score, term2_score, term3_score):
     score_avg = (term1_score + term2_score + term3_score) / 3
+    # We also take attendance into account, as it's a strong indicator of success.
     att_factor = (attendance_rate / 100) * 25
     predicted_score = round((score_avg * 0.75) + att_factor, 2)
     return max(0.0, min(100.0, predicted_score))
 
 
+# This is the primary function used to predict a student's future score based on their current performance.
 def predict_score_bundle(attendance_rate, term1_score, term2_score, term3_score):
     model, metadata, _ = _load_artifacts()
     terminal_avg = round((term1_score + term2_score + term3_score) / 3, 2)
+    
+    # We prepare the data in a format the model can understand.
     input_df = pd.DataFrame([
         {
             "attendance_rate": attendance_rate,
@@ -132,13 +142,17 @@ def predict_score_bundle(attendance_rate, term1_score, term2_score, term3_score)
     ])
 
     source = "formula_fallback"
+    # We start with our fallback prediction just in case.
     predicted_score = _formula_fallback(attendance_rate, term1_score, term2_score, term3_score)
+    
+    # If the advanced model is loaded, we use it for a more accurate prediction.
     if model is not None:
         try:
             predicted_score = float(model.predict(input_df)[0])
             predicted_score = round(max(0.0, min(100.0, predicted_score)), 2)
             source = metadata.get("artifact_source", "trained_model")
         except Exception:
+            # If the advanced model fails, we stay with the fallback result.
             predicted_score = _formula_fallback(attendance_rate, term1_score, term2_score, term3_score)
             source = "formula_fallback"
 
@@ -158,6 +172,7 @@ def predict_academic_score(attendance_rate, term1_score, term2_score, term3_scor
     return predict_score_bundle(attendance_rate, term1_score, term2_score, term3_score)["predicted_score"]
 
 
+# This function categorizes a score into 'low', 'medium', or 'high' risk levels.
 def score_to_risk(score, rules=None):
     thresholds = (rules or get_business_rules()).get("risk_thresholds", {})
     low_min = float(thresholds.get("low_min_score", 75))
@@ -169,30 +184,32 @@ def score_to_risk(score, rules=None):
     return "high"
 
 
+# This function analyzes how a student's grades are changing over time.
 def calculate_trend(term1_score, term2_score, term3_score, audience="admin"):
     diff1 = term2_score - term1_score
     diff2 = term3_score - term2_score
 
+    # We provide different messaging depending on whether the student or the admin is viewing it.
     if audience == "student":
         if diff1 > 3 and diff2 > 3:
-            return "improving", "↑ Improving", "You are consistently improving each term. Keep it up!"
+            return "improving", "Improving", "You are consistently improving each term. Keep it up!"
         if diff1 < -3 and diff2 < -3:
-            return "declining", "↓ Declining", "Your marks are dropping each term. Seek help immediately."
+            return "declining", "Declining", "Your marks are dropping each term. Seek help immediately."
         if diff1 > 3 and diff2 < -3:
-            return "unstable", "~ Unstable", "Marks went up then dropped. Try to maintain consistency."
+            return "unstable", "Unstable", "Marks went up then dropped. Try to maintain consistency."
         if diff1 < -3 and diff2 > 3:
-            return "recovering", "↑ Recovering", "Marks dropped in term 2 but you recovered in term 3. Well done!"
-        return "stable", "→ Stable", "Performance is consistent across all terms."
+            return "recovering", "Recovering", "Marks dropped in term 2 but you recovered in term 3. Well done!"
+        return "stable", "Stable", "Performance is consistent across all terms."
 
     if diff1 > 3 and diff2 > 3:
-        return "improving", "↑ Improving", "Student is consistently improving each term."
+        return "improving", "Improving", "Student is consistently improving each term."
     if diff1 < -3 and diff2 < -3:
-        return "declining", "↓ Declining", "Student marks are dropping each term. Immediate attention needed."
+        return "declining", "Declining", "Student marks are dropping each term. Immediate attention needed."
     if diff1 > 3 and diff2 < -3:
-        return "unstable", "~ Unstable", "Marks went up then dropped. Performance is inconsistent."
+        return "unstable", "Unstable", "Marks went up then dropped. Performance is inconsistent."
     if diff1 < -3 and diff2 > 3:
-        return "recovering", "↑ Recovering", "Marks dropped in term 2 but recovered in term 3. Monitor closely."
-    return "stable", "→ Stable", "Performance is consistent across all terms."
+        return "recovering", "Recovering", "Marks dropped in term 2 but recovered in term 3. Monitor closely."
+    return "stable", "Stable", "Performance is consistent across all terms."
 
 
 def calculate_final_risk(predicted_score, attendance_rate, complaint_count, due_amount, trend):
@@ -259,6 +276,7 @@ def get_pi_label(score):
     return "Below Average"
 
 
+# This helper function combines all calculations together to provide a complete academic profile for a student.
 def build_prediction_payload(attendance_rate, term1_score, term2_score, term3_score, complaint_count=0, due_amount=0, audience="admin"):
     score_bundle = predict_score_bundle(attendance_rate, term1_score, term2_score, term3_score)
     trend, trend_label, trend_note = calculate_trend(term1_score, term2_score, term3_score, audience=audience)
@@ -285,9 +303,11 @@ def current_academic_year():
     return date.today().year
 
 
+# This function saves or updates a student's academic performance for a specific subject in our database.
 def upsert_student_academic_record(student_id, subject_id, attendance_rate, term1_score, term2_score, term3_score,
                                    predicted_score, grade, trend, trend_label, ai_recommendation, academic_year=None):
     academic_year = academic_year or current_academic_year()
+    # We use a 'MERGE' command to either update an existing record or create a new one if it doesn't exist.
     execute_dml(
         """
         MERGE INTO student_academic_records sar

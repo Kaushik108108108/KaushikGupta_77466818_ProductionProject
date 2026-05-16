@@ -20,12 +20,13 @@ document.addEventListener('DOMContentLoaded', function () {
   /* ── THEME TOGGLER ── */
   const themeToggleBtn = document.getElementById('themeToggleBtn');
   if (themeToggleBtn) {
-    const sunSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
-    const moonSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+    // We use simple text instead of icons for the theme toggle to keep the interface clean.
+    const lightText = 'LIGHT';
+    const darkText  = 'DARK';
     
-    // Set initial icon based on applied theme
+    // Set the initial label based on the current theme.
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    themeToggleBtn.innerHTML = currentTheme === 'dark' ? sunSvg : moonSvg;
+    themeToggleBtn.innerHTML = currentTheme === 'dark' ? lightText : darkText;
 
     themeToggleBtn.addEventListener('click', function() {
       let activeTheme = document.documentElement.getAttribute('data-theme') || 'light';
@@ -34,8 +35,8 @@ document.addEventListener('DOMContentLoaded', function () {
       document.documentElement.setAttribute('data-theme', newTheme);
       localStorage.setItem('scholarai_theme', newTheme);
       
-      // Update visually
-      this.innerHTML = newTheme === 'dark' ? sunSvg : moonSvg;
+      // Update the button text to match the new theme.
+      this.innerHTML = newTheme === 'dark' ? lightText : darkText;
     });
   }
 
@@ -59,7 +60,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const applyBtn = document.getElementById('applyFilter');
   if (applyBtn) {
     applyBtn.addEventListener('click', function () {
-      this.textContent = 'APPLIED ✓';
+      // We briefly update the button text to confirm that the filters have been applied.
+      this.textContent = 'APPLIED';
       setTimeout(() => { this.textContent = 'APPLY'; }, 1500);
     });
   }
@@ -81,15 +83,15 @@ document.addEventListener('DOMContentLoaded', function () {
       const templates = {
         'High Risk Warning': {
           subject: `URGENT: Academic Performance Concern — ${sd.full_name}`,
-          body: `Dear Parent/Guardian,\n\nWe wish to urgently bring to your attention that your ward, ${sd.full_name}, has been flagged as ${sd.risk_level} RISK based on our AI-powered performance prediction system.\n\nCurrent Performance Index: ${sd.performance_index}%\nRisk Level: ${sd.risk_level}\nOutstanding Dues: ₹${sd.due_amount.toLocaleString()}\n\nWe strongly recommend scheduling a meeting with the class teacher at your earliest convenience.\n\nRegards,\nSchool Administration — ScholarAI System`
+          body: `Dear Parent/Guardian,\n\nWe wish to urgently bring to your attention that your ward, ${sd.full_name}, has been flagged as ${sd.risk_level} RISK based on our AI-powered performance prediction system.\n\nCurrent Performance Index: ${sd.performance_index}%\nRisk Level: ${sd.risk_level}\nOutstanding Dues: Rs. ${sd.due_amount.toLocaleString()}\n\nWe strongly recommend scheduling a meeting with the class teacher at your earliest convenience.\n\nRegards,\nSchool Administration — ScholarAI System`
         },
         'Attendance Alert': {
           subject: `Attendance Below Threshold — ${sd.full_name}`,
           body: `Dear Parent/Guardian,\n\nThis is to inform you that your ward's attendance has fallen to ${sd.attendance_rate}%, which is below the required 75% threshold.\n\nPlease ensure ${sd.full_name} attends classes regularly to avoid academic penalties.\n\nRegards,\nSchool Administration`
         },
         'Fee Dues Reminder': {
-          subject: `Reminder: Outstanding Fee Dues of ₹${sd.due_amount.toLocaleString()} — ${sd.full_name}`,
-          body: `Dear Parent/Guardian,\n\nThis is a reminder regarding outstanding fee dues of ₹${sd.due_amount.toLocaleString()} for your ward ${sd.full_name}.\n\nPlease clear the dues at the earliest to avoid any disruption to academic progress.\n\nRegards,\nAccounts Department — ScholarAI`
+          subject: `Reminder: Outstanding Fee Dues of Rs. ${sd.due_amount.toLocaleString()} — ${sd.full_name}`,
+          body: `Dear Parent/Guardian,\n\nThis is a reminder regarding outstanding fee dues of Rs. ${sd.due_amount.toLocaleString()} for your ward ${sd.full_name}.\n\nPlease clear the dues at the earliest to avoid any disruption to academic progress.\n\nRegards,\nAccounts Department — ScholarAI`
         },
         'Performance Improvement Notice': {
           subject: `Performance Improvement Plan — ${sd.full_name}`,

@@ -1,9 +1,12 @@
+# This file provides the AI-powered recommendation system for students and admins.
 import os
 import json
 import urllib.request
 import urllib.error
 
 
+# This function generates a personalized academic recommendation for a student.
+# It tries to use an AI model first, but has a built-in fallback system if the internet or API fails.
 def generate_ai_recommendation(
     student_name: str,
     subject_name: str,
@@ -16,17 +19,11 @@ def generate_ai_recommendation(
     term3_score: float,
     complaint_count: int = 0,
     due_amount: float = 0,
-    audience: str = "admin",   # "admin" or "student"
+    audience: str = "admin", 
 ) -> str:
-    """
-    Call Anthropic claude-sonnet-4-20250514 to generate a personalised,
-    subject-aware academic recommendation.
 
-    Falls back to a rich rule-based recommendation if the API call fails
-    so the rest of the app never breaks.
-    """
-
-    # ── Build a tight, structured prompt ──────────────────────────────
+    # We build a detailed description of the student's situation to give to the AI.
+    # The tone changes depending on whether an administrator or the student is reading it.
     tone = (
         "a school administrator reviewing student academic data"
         if audience == "admin"
@@ -59,6 +56,7 @@ Do NOT add any preamble like "Here is the recommendation:" — just write it dir
 
     api_key = os.getenv("ANTHROPIC_API_KEY", "")
 
+    # If we have an API key, we send the request to the AI service.
     if api_key:
         try:
             payload = json.dumps({
@@ -78,6 +76,7 @@ Do NOT add any preamble like "Here is the recommendation:" — just write it dir
                 method="POST"
             )
 
+            # We wait for the response and return the text if it's successful.
             with urllib.request.urlopen(req, timeout=15) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
                 text_blocks = [b["text"] for b in body.get("content", []) if b.get("type") == "text"]
@@ -86,9 +85,10 @@ Do NOT add any preamble like "Here is the recommendation:" — just write it dir
                     return recommendation
 
         except Exception:
-            pass   # fall through to rule-based fallback
+            # If there's an error, we just move on to the fallback method.
+            pass
 
-    # ── Rule-based fallback (always works, no API needed) ──────────────
+    # This is our reliable fallback that creates a recommendation using pre-written rules.
     return _rule_based_recommendation(
         subject_name, risk_level, trend,
         predicted_score, attendance_rate,

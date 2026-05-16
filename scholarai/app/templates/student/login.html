@@ -1,3 +1,4 @@
+<!-- This page allows students to sign in to their dashboard or create a new account. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,8 +65,8 @@
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
+        <!-- These alerts provide feedback after a login or registration attempt. -->
         <div class="alert {{ 'success' if cat == 'success' else 'danger' }} backend-flash" style="margin-bottom:16px; transition: opacity 0.5s ease;">
-          <span class="alert__icon">{{ '✓' if cat == 'success' else '⚠' }}</span>
           <div class="alert__text"><strong>{{ msg }}</strong></div>
         </div>
       {% endfor %}
@@ -88,16 +89,17 @@
           <input type="password" name="password" class="form-control dark" placeholder="" required autocomplete="new-password" />
           <a href="{{ url_for('auth.forgot_password') }}" style="font-size: 11px; color: var(--gray); text-decoration: none; margin-top: 2px; text-align: right; display: block;">Forgot credentials?</a>
         </div>
-        <button type="submit" class="btn btn-primary full" style="padding:13px;font-size:14px;letter-spacing:0.05em;margin-top:8px;">SIGN IN TO PORTAL →</button>
+        <button type="submit" class="btn btn-primary full" style="padding:13px;font-size:14px;letter-spacing:0.05em;margin-top:8px;">SIGN IN TO PORTAL</button>
         <div style="border-top:1px solid var(--border);padding-top:18px;text-align:center;">
           <span class="fs-12 text-muted">Admin? </span>
-          <a href="{{ url_for('auth.admin_login') }}" style="font-size:12px;color:var(--blue);font-weight:600;">Admin Portal →</a>
+          <a href="{{ url_for('auth.admin_login') }}" style="font-size:12px;color:var(--blue);font-weight:600;">Admin Portal</a>
         </div>
       </form>
     </div>
 
     <div class="auth-panel" id="panel-register">
-      <form method="POST" action="{{ url_for('auth.student_register') }}" class="login-form">
+      <!-- Students use this form to create a new ScholarAI account. -->
+      <form method="POST" action="{{ url_for('student.student_register') }}" class="login-form">
         <div class="form-group">
           <label class="form-label">Full Name</label>
           <input type="text" name="full_name" class="form-control dark" placeholder="Your full name" required/>
@@ -151,10 +153,10 @@
             <input type="password" name="confirm_password" class="form-control dark" placeholder="Repeat" required/>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary full" style="padding:11px;font-size:13px;letter-spacing:0.05em;margin-top:4px;">CREATE STUDENT ACCOUNT →</button>
+        <button type="submit" class="btn btn-primary full" style="padding:11px;font-size:13px;letter-spacing:0.05em;margin-top:4px;">CREATE ACCOUNT</button>
         <div style="border-top:1px solid var(--border);padding-top:12px;text-align:center;">
-          <span class="fs-12 text-muted">Already enrolled? </span>
-          <button type="button" onclick="switchTab('signin')" style="background:none;border:none;font-size:12px;color:var(--blue);font-weight:600;cursor:pointer;">Sign In →</button>
+          <span class="fs-12 text-muted">Already have an account? </span>
+          <button type="button" onclick="switchTab('signin')" style="background:none;border:none;font-size:12px;color:var(--blue);font-weight:600;cursor:pointer;">Sign In</button>
         </div>
       </form>
     </div>
@@ -162,112 +164,89 @@
 </div>
 
 <script>
-  function switchTab(tab) {
-    document.getElementById('panel-signin').classList.remove('active');
-    document.getElementById('panel-register').classList.remove('active');
-    document.getElementById('tab-signin').classList.remove('active');
-    document.getElementById('tab-register').classList.remove('active');
-    document.getElementById('panel-' + tab).classList.add('active');
-    document.getElementById('tab-' + tab).classList.add('active');
-  }
-  const urlTab = new URLSearchParams(window.location.search).get('tab') || 'signin';
-  switchTab(urlTab);
-</script>
+    // This script allows users to switch between the 'Sign In' and 'Register' views.
+    function switchTab(tab) {
+      document.getElementById('panel-signin').classList.remove('active');
+      document.getElementById('panel-register').classList.remove('active');
+      document.getElementById('tab-signin').classList.remove('active');
+      document.getElementById('tab-register').classList.remove('active');
+      document.getElementById('panel-' + tab).classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+    }
+    // We check the URL to see which panel should be open when the page loads.
+    const urlTab = new URLSearchParams(window.location.search).get('tab') || 'signin';
+    switchTab(urlTab);
+  </script>
   <script>
-  let rtFlashTimeout = null;
-  function showRtFlash(inputEl, msg) {
-    document.querySelectorAll('.rt-flash').forEach(e => e.remove());
-    if (rtFlashTimeout) clearTimeout(rtFlashTimeout);
-    if (msg) {
-      const alertHtml = `
-        <div class="alert danger rt-flash" style="margin-bottom:16px; transition: opacity 0.5s ease;">
-          <span class="alert__icon" style="font-size:14px; margin-right:6px;">⚠</span>
-          <div class="alert__text"><strong>${msg}</strong></div>
-        </div>
-      `;
-      const tabs = document.querySelector('.auth-tabs');
-      if (tabs) {
-        tabs.insertAdjacentHTML('afterend', alertHtml);
-      } else {
-        inputEl.parentNode.insertAdjacentHTML('afterbegin', alertHtml);
-      }
-      const newFlash = document.querySelector('.rt-flash');
-      rtFlashTimeout = setTimeout(() => {
-          if (newFlash) {
-              newFlash.style.opacity = '0';
-              setTimeout(() => newFlash.remove(), 500);
-          }
-      }, 2000);
+            setTimeout(() => alert.remove(), 500);
+        }, 2000);
+    });
+});
+
+// As the user types, we check if their input matches the required format.
+document.addEventListener('input', function(e) {
+  const inputEl = e.target;
+  if (!inputEl.form) return;
+  
+  const name = inputEl.name;
+  const val = inputEl.value;
+  // If the field is empty, we clear any current warning.
+  if (!val) return showRtFlash(inputEl, null);
+  
+  // We check names for letters, phone numbers for digits, and usernames for basic characters.
+  if (name === 'full_name' || name === 'guardian_name') {
+    if (!/^[A-Za-z\s]+$/.test(val)) {
+      showRtFlash(inputEl, `Please use only letters and spaces for names.`);
+    } else { showRtFlash(inputEl, null); }
+  } else if (name === 'phone_number' || name === 'phone') {
+    if (!/^\d*$/.test(val) || val.length > 10) {
+      showRtFlash(inputEl, `Phone numbers should be exactly 10 digits long.`);
+    } else { showRtFlash(inputEl, null); }
+  } else if (name === 'username') {
+    if (inputEl.closest('#panel-register')) {
+      if (!/^[A-Za-z0-9_]+$/.test(val)) {
+        showRtFlash(inputEl, `Usernames can only contain letters, numbers, and underscores.`);
+      } else { showRtFlash(inputEl, null); }
     }
   }
+});
 
-  document.addEventListener('DOMContentLoaded', () => {
-      document.querySelectorAll('.backend-flash').forEach(alert => {
-          setTimeout(() => {
-              alert.style.opacity = '0';
-              setTimeout(() => alert.remove(), 500);
-          }, 2000);
-      });
-  });
+// When a user finishes typing and leaves a field, we do a final check for things like email formatting.
+document.addEventListener('focusout', function(e) {
+  const inputEl = e.target;
+  if (!inputEl.form) return;
+  const name = inputEl.name;
+  const val = inputEl.value;
+  
+  if (name === 'phone_number' || name === 'phone') {
+    if (val && val.length > 0 && val.length !== 10) {
+      showRtFlash(inputEl, `Please make sure the phone number is exactly 10 digits.`);
+    }
+  } else if (name === 'full_name' || name === 'guardian_name') {
+    const parts = val.trim().split(/\s+/);
+    if (val && val.trim().length > 0 && parts.length < 2) {
+      showRtFlash(inputEl, `Please enter both your first and last name.`);
+    }
+  } else if (name === 'email' || name === 'guardian_email') {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (val && val.length > 0 && !emailRegex.test(val)) {
+      showRtFlash(inputEl, `Please enter a valid email address.`);
+    }
+  }
+});
 
-  document.addEventListener('input', function(e) {
-    const inputEl = e.target;
-    if (!inputEl.form) return;
-    
-    const name = inputEl.name;
-    const val = inputEl.value;
-    if (!val) return showRtFlash(inputEl, null);
-    
-    if (name === 'full_name' || name === 'guardian_name') {
-      if (!/^[A-Za-z\s]+$/.test(val)) {
-        showRtFlash(inputEl, `Wrong input for ${name === 'full_name' ? 'Full Name' : 'Guardian Name'}. Correct version: Should only contain letters and spaces.`);
-      } else { showRtFlash(inputEl, null); }
-    } else if (name === 'phone_number' || name === 'phone') {
-      if (!/^\d*$/.test(val) || val.length > 10) {
-        showRtFlash(inputEl, `Wrong input for Phone Number. Correct version: Should contain exactly 10 digits.`);
-      } else { showRtFlash(inputEl, null); }
-    } else if (name === 'username') {
-      if (inputEl.closest('#panel-register')) {
-        if (!/^[A-Za-z0-9_]+$/.test(val)) {
-          showRtFlash(inputEl, `Wrong input for Username. Correct version: Should only contain letters, numbers, and underscores.`);
-        } else { showRtFlash(inputEl, null); }
-      }
-    }
-  });
-
-  document.addEventListener('focusout', function(e) {
-    const inputEl = e.target;
-    if (!inputEl.form) return;
-    const name = inputEl.name;
-    const val = inputEl.value;
-    
-    if (name === 'phone_number' || name === 'phone') {
-      if (val && val.length > 0 && val.length !== 10) {
-        showRtFlash(inputEl, `Wrong input for Phone Number. Correct version: Should contain exactly 10 digits.`);
-      }
-    } else if (name === 'full_name' || name === 'guardian_name') {
-      const parts = val.trim().split(/\s+/);
-      if (val && val.trim().length > 0 && parts.length < 2) {
-        showRtFlash(inputEl, `Wrong input for ${name === 'full_name' ? 'Full Name' : 'Guardian Name'}. Correct version: Please enter both first and last name.`);
-      }
-    } else if (name === 'email' || name === 'guardian_email') {
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (val && val.length > 0 && !emailRegex.test(val)) {
-        showRtFlash(inputEl, `Wrong input for ${name === 'email' ? 'Email Address' : 'Guardian Email'}. Correct version: Must be a valid email format.`);
-      }
-    }
-  });
-
-  document.addEventListener('submit', function(e) {
-    const form = e.target;
-    if (form.closest('#panel-register')) {
-      form.querySelectorAll('input').forEach(input => {
-        input.dispatchEvent(new Event('focusout', { bubbles: true }));
-      });
-    }
-    if (document.querySelector('.rt-flash')) {
-      e.preventDefault();
-    }
-  });
+// Before the form is actually sent, we run all the checks one last time to prevent errors.
+document.addEventListener('submit', function(e) {
+  const form = e.target;
+  if (form.closest('#panel-register')) {
+    form.querySelectorAll('input').forEach(input => {
+      input.dispatchEvent(new Event('focusout', { bubbles: true }));
+    });
+  }
+  // If there are still error messages showing, we stop the form from submitting.
+  if (document.querySelector('.rt-flash')) {
+    e.preventDefault();
+  }
+});
   </script>
 </body>
