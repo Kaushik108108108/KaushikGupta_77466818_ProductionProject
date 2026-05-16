@@ -1,3 +1,5 @@
+# This is the main script that handles all administrative actions in the portal.
+# We import various tools for database access, AI features, email, and file handling.
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from app.db import fetch_one, fetch_all, execute_dml
 from app.ai_service import generate_ai_recommendation
@@ -8,14 +10,17 @@ import requests as http_requests
 from app.email_service import send_custom_email, send_high_risk_alert
 from app import ml_service
 
+# We create a Blueprint to keep our admin-related pages organized.
 admin_bp = Blueprint('admin', __name__)
 
 
+# This is a security check to make sure only logged-in administrators can access these pages.
 def admin_required(f):
     from functools import wraps
 
     @wraps(f)
     def decorated(*args, **kwargs):
+        # If they aren't logged in, we send them back to the login page.
         if not session.get('admin_logged_in'):
             return redirect(url_for('auth.admin_login'))
         return f(*args, **kwargs)
@@ -23,25 +28,27 @@ def admin_required(f):
     return decorated
 
 
-# ── HELPER: Trend Analysis ──
+# This helper function looks at a student's grades across three terms and tells us if they are improving or struggling.
 def calculate_trend(term1_score, term2_score, term3_score):
     diff1 = term2_score - term1_score
     diff2 = term3_score - term2_score
 
+    # We check if their marks are consistently going up, down, or jumping around.
     if diff1 > 3 and diff2 > 3:
-        return 'improving', '↑ Improving', 'Student is consistently improving each term.'
+        return 'improving', 'Improving', 'Student is consistently improving each term.'
     elif diff1 < -3 and diff2 < -3:
-        return 'declining', '↓ Declining', 'Student marks are dropping each term. Immediate attention needed.'
+        return 'declining', 'Declining', 'Student marks are dropping each term. Immediate attention needed.'
     elif diff1 > 3 and diff2 < -3:
-        return 'unstable', '~ Unstable', 'Marks went up then dropped. Performance is inconsistent.'
+        return 'unstable', 'Unstable', 'Marks went up then dropped. Performance is inconsistent.'
     elif diff1 < -3 and diff2 > 3:
-        return 'recovering', '↑ Recovering', 'Marks dropped in term 2 but recovered in term 3. Monitor closely.'
+        return 'recovering', 'Recovering', 'Marks dropped in term 2 but recovered in term 3. Monitor closely.'
     else:
-        return 'stable', '→ Stable', 'Performance is consistent across all terms.'
+        return 'stable', 'Stable', 'Performance is consistent across all terms.'
 
 
-# ── HELPER: Risk Calculation (Step 2) ──
+# This function calculates the overall risk level for a student based on grades, attendance, and behavior.
 def calculate_final_risk(predicted_score, attendance_rate, complaint_count, due_amount, trend):
+    # We start with a base risk level determined solely by their predicted grade.
     if predicted_score >= 75:
         base_risk = 'low'
     elif predicted_score >= 55:
@@ -49,6 +56,7 @@ def calculate_final_risk(predicted_score, attendance_rate, complaint_count, due_
     else:
         base_risk = 'high'
 
+    # We then look for other warning signs like behavior issues or low attendance.
     risk_flags = []
     if complaint_count >= 3:
         risk_flags.append('HIGH BEHAVIOR RISK')
@@ -73,6 +81,7 @@ def calculate_final_risk(predicted_score, attendance_rate, complaint_count, due_
     elif trend == 'unstable':
         risk_flags.append('UNSTABLE TREND')
 
+    # If multiple warnings are found, we might upgrade their risk level to ensure they get help.
     high_flags = ['HIGH BEHAVIOR RISK', 'HIGH FINANCIAL RISK', 'CRITICAL ATTENDANCE', 'DECLINING TREND']
 
     if base_risk == 'low' and len(risk_flags) >= 2:
@@ -87,7 +96,7 @@ def calculate_final_risk(predicted_score, attendance_rate, complaint_count, due_
     return final_risk, risk_flags
 
 
-# ── HELPER: Grade from score ──
+# This simple function converts a numerical score into a letter grade.
 def get_grade(score):
     if score >= 85:
         return 'A'
@@ -155,6 +164,8 @@ def _next_report_id():
     return f"REP-{int(nxt):03d}"
 
 
+# This is the main dashboard for administrators. 
+# It shows an overview of all students and their risk levels.
 @admin_bp.route('/dashboard')
 @admin_required
 def dashboard():
@@ -1619,15 +1630,21 @@ def delete_chat_session(session_id):
     return redirect(url_for('admin.chatbot'))
 
 
+# This is the main route that handles sending messages to the admin chatbot.
+# We make sure only admins can access this part of the system.
 @admin_bp.route('/chatbot/send', methods=['POST'])
 @admin_required
 def chatbot_send():
+    # First, we grab the message sent by the user and clean it up.
     payload = request.get_json(silent=True) or {}
     msg = (payload.get('message') or '').strip()
 
+    # If they didn't actually type anything, we let them know.
     if not msg:
         return jsonify({'reply': 'Please enter a message.'}), 400
 
+    # We check if there's an ongoing active chat session for this admin.
+    # If not, we create a new one so their conversation history is saved properly.
     admin_id = session.get("admin_id")
 
     session_row = fetch_one("""
@@ -1673,8 +1690,10 @@ def chatbot_send():
         """, {"admin_id": admin_id})
 
 
-    # 1. Fetch live data context from existing tables
+    # Now we gather real-time data from the database to give the AI context.
+    # This helps the chatbot give accurate answers about students, grades, and dues.
     try:
+        # We start by getting a broad overview of the entire school.
         # Overall stats
         stats = fetch_one("""
             SELECT COUNT(*) AS total,
@@ -1769,7 +1788,8 @@ def chatbot_send():
             FETCH FIRST 50 ROWS ONLY
         """)
 
-        # Format data into compact strings
+        # Once we have all the raw data, we turn it into neat lists for the AI to read easily.
+        # This includes everything from high-risk students to outstanding fees.
         high_risk_list = "\n".join([
             f"  - {s['full_name']} ({s['student_id']}) | Class: {s['class_level']}-{s['section']} | "
             f"Att: {s['attendance_rate']}% | PI: {s['pi']} | Dues: ₹{s['due_amount']} | Complaints: {s['complaint_count']}"
@@ -1799,75 +1819,77 @@ def chatbot_send():
         ]) or "  None"
 
         dues_list = "\n".join([
-            f"  - {s['full_name']} ({s['class_level']}): ₹{s['due_amount']}"
+            f"  - {s['full_name']} ({s['class_level']}): Rs. {s['due_amount']}"
             for s in dues_students
         ]) or "  None"
 
-        system_prompt = f"""You are ScholarAI Admin Assistant — an AI embedded in a school management system.
-You have DIRECT ACCESS to the following LIVE DATABASE snapshot. Use this data to answer all questions accurately and specifically.
+        # We construct the instructions for the AI, giving it all the data it needs to help us.
+        system_prompt = f"""
+You are the ScholarAI Admin Assistant. Your job is to help school staff understand student data and navigate this portal.
+Ground your answers in this real-time academic snapshot:
 
-=== SCHOOL OVERVIEW & COUNTS ===
+SCHOOL OVERVIEW AND COUNTS
 - Total Enrolled Students: {stats['total'] if stats else 'N/A'}
 - Risk Breakdown: {stats['high_risk_cnt'] if stats else 'N/A'} High Risk | {stats['med_risk_cnt'] if stats else 'N/A'} Medium Risk | {stats['low_risk_cnt'] if stats else 'N/A'} Low Risk
 - Students with Pending Dues: {stats['students_with_dues_cnt'] if stats else 'N/A'}
 - Average Performance Index: {stats['avg_pi'] if stats else 'N/A'}%
 - Average Attendance: {stats['avg_att'] if stats else 'N/A'}%
-- Total Outstanding Dues Amount: ₹{stats['total_dues'] if stats else '0'}
+- Total Outstanding Dues Amount: Rs. {stats['total_dues'] if stats else '0'}
 - Predictions Run: {pred_stats['total_preds'] if pred_stats else 'N/A'} (High Risk Found: {pred_stats['high_preds'] if pred_stats else 'N/A'})
 
-=== HIGH-RISK STUDENTS ===
+HIGH-RISK STUDENTS
 {high_risk_list}
 
-=== MEDIUM-RISK STUDENTS ===
+MEDIUM-RISK STUDENTS
 {med_risk_list}
 
-=== CLASS-WISE BREAKDOWN ===
+CLASS-WISE BREAKDOWN
 {class_list}
 
-=== SUBJECT-WISE PERFORMANCE ===
+SUBJECT-WISE PERFORMANCE
 {subject_list}
 
-=== OPEN COMPLAINTS ===
+OPEN COMPLAINTS
 {comp_list}
 
-=== CRITICAL ATTENDANCE (<75%) ===
+CRITICAL ATTENDANCE (Below 75%)
 {low_att_list}
 
-=== STUDENTS WITH OUTSTANDING DUES ===
+STUDENTS WITH OUTSTANDING DUES
 {dues_list}
 
-=== WEBSITE NAVIGATION GUIDE ===
+WEBSITE NAVIGATION GUIDE
 - Dashboard (/admin/dashboard): View overview stats, filter students by class/section/risk, and view the main roster.
-- Student Details (/admin/student/<student_id>): Access individual student data, update details, clear dues, log/resolve complaints, and send custom emails.
-- Run New Prediction: Go to the Predictions page (/admin/predictions) from the sidebar navigation and click the "+ RUN NEW PREDICTION" button.
-- Generate New Report: Go to the Reports page (/admin/reports) from the sidebar navigation and click the "+ GENERATE REPORT" button.
+- Student Details (/admin/student/student_id): Access individual student data, update details, clear dues, log/resolve complaints, and send custom emails.
+- Run New Prediction: Go to the Predictions page (/admin/predictions) from the sidebar navigation and click the "RUN NEW PREDICTION" button.
+- Generate New Report: Go to the Reports page (/admin/reports) from the sidebar navigation and click the "GENERATE REPORT" button.
 - Send Bulk Emails: On the Dashboard, click the "Email All High Risk" button.
 - Send Custom Email: On the Dashboard, click the "EMAIL" button next to the student's name in the roster table. Alternatively, go to the Student Details page and click "Send Email".
 - Update Student / Clear Dues: On the Student Details page, use the quick action buttons or "Edit Profile".
 
-=== INSTRUCTIONS ===
+INSTRUCTIONS
 - Answer questions using the exact data above. Name specific students when relevant.
-- If asked about student counts (e.g. how many have dues, how many are medium risk), answer using the 'School Overview & Counts' section above!
-- If asked about a student not listed, say they are not in the high/medium risk category.
-- If asked "how to" do something or "where" a feature is on the website (like running predictions or reports), use the WEBSITE NAVIGATION GUIDE to give precise directions.
-- When providing resources, advice, or video links to students or other admins, ONLY USE the exact links provided in the VERIFIED RESOURCE LIBRARY below. Do NOT make up or hallucinate any other URLs, as they will break.
+- If asked about student counts, answer using the 'School Overview and Counts' section above.
+- If asked about a student not listed, say they are not in the high or medium risk category.
+- If asked "how to" do something or "where" a feature is on the website, use the WEBSITE NAVIGATION GUIDE to give precise directions.
+- When providing resources, advice, or video links to students or other admins, ONLY USE the exact links provided in the VERIFIED RESOURCE LIBRARY below. Do NOT make up any other URLs.
 - For management strategies, be concise and practical.
 - Do NOT fabricate student names or numbers not shown above.
 - Keep responses professional, clear, and structured.
 
-=== VERIFIED RESOURCE LIBRARY ===
-*Motivation & Study Habits (Exact Videos):*
+VERIFIED RESOURCE LIBRARY
+Motivation and Study Habits (Exact Videos):
 - Tim Urban: Inside the mind of a master procrastinator - https://www.youtube.com/watch?v=arj7oStGLkU
 - Angela Duckworth: Grit: the power of passion and perseverance - https://www.youtube.com/watch?v=H14bBuluwB8
 - Ali Abdaal: How to study for exams - Evidence-based revision tips - https://www.youtube.com/watch?v=ukLnPbIffxE
 - Matt D'Avella: How to stop procrastinating - https://www.youtube.com/watch?v=km4pOGd_lHw
 
-*Academic Channels:*
+Academic Channels:
 - Khan Academy (Math/Science) - https://www.youtube.com/c/khanacademy
 - CrashCourse (General Topics) - https://www.youtube.com/user/crashcourse
 - MIT OpenCourseWare - https://www.youtube.com/c/mitocw"""
 
-        # 2. Fetch history from existing chat_messages table
+        # We also grab the last few messages in the chat history so the conversation feels natural.
         history_rows = fetch_all("""
             SELECT sender_type, message_text 
             FROM chat_messages 
@@ -1888,7 +1910,7 @@ You have DIRECT ACCESS to the following LIVE DATABASE snapshot. Use this data to
         system_prompt = "You are ScholarAI Admin Assistant. Help with student data. (Context query failed)"
         history_list = []
 
-    # Insert the user message AFTER history is fetched
+    # We save the admin's message into our database for future reference.
     execute_dml("""
         INSERT INTO chat_messages (session_id, sender_type, message_text)
         VALUES (:session_id, 'USER', :message_text)
@@ -1897,6 +1919,7 @@ You have DIRECT ACCESS to the following LIVE DATABASE snapshot. Use this data to
         "message_text": msg
     })
 
+    # Finally, we send everything to our AI service and wait for a helpful response.
     try:
         res = http_requests.post(
             "http://127.0.0.1:8000/chat",
@@ -1918,6 +1941,7 @@ You have DIRECT ACCESS to the following LIVE DATABASE snapshot. Use this data to
     except Exception as e:
         reply = f'Connection error: {str(e)}'
 
+    # We save the AI's reply to the database as well.
     execute_dml("""
         INSERT INTO chat_messages (session_id, sender_type, message_text)
         VALUES (:session_id, 'BOT', :message_text)
@@ -1926,6 +1950,7 @@ You have DIRECT ACCESS to the following LIVE DATABASE snapshot. Use this data to
         "message_text": reply
     })
 
+    # We send the reply back to the dashboard to show it on the screen.
     return jsonify({
         'reply': reply,
         'session_id': session_row["session_id"]

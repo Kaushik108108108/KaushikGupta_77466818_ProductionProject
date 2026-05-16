@@ -1,3 +1,4 @@
+<!-- This is the landing page where users choose to enter either the Admin or Student portal. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,9 +11,11 @@
     .hub{text-align:center;}
     .hub__logo{width:220px;height:auto;margin-bottom:24px;display:inline-block;}
     .hub__logo img{width:100%;height:auto;display:block;filter:drop-shadow(0 4px 20px rgba(37,99,235,0.4));}
+    /* We keep the description text simple and easy to read. */
     .hub__sub{color:var(--gray);font-size:14px;margin-bottom:48px;}
     .hub__cards{display:flex;gap:20px;justify-content:center;}
     .hub__card{width:270px;background:var(--navy-mid);border:1px solid var(--navy-lt);padding:32px 24px;text-decoration:none;display:block;transition:border-color 0.15s,transform 0.2s;text-align:left;}
+    /* The cards lift slightly when you hover over them to show they are clickable. */
     .hub__card:hover{transform:translateY(-4px);}
     .hub__card.admin:hover{border-color:var(--blue);}
     .hub__card.student:hover{border-color:var(--blue);}
@@ -54,19 +57,19 @@
     </div>
     <div class="hub__sub">Early Student Performance Prediction System</div>
     <div class="hub__cards">
+      <!-- This card leads to the login page for administrators. -->
       <a href="{{ url_for('auth.admin_login') }}" class="hub__card admin">
-        <div class="hub__card-icon">👨‍💼</div>
         <div class="hub__card-role">ADMIN PORTAL</div>
         <div class="hub__card-title">Administrator</div>
         <div class="hub__card-desc">Monitor student risk levels, view detailed performance, send emails, and manage AI predictions.</div>
-        <div class="hub__card-btn">SIGN IN AS ADMIN →</div>
+        <div class="hub__card-btn">SIGN IN AS ADMIN</div>
       </a>
+      <!-- This card leads to the login page for students. -->
       <a href="{{ url_for('auth.student_login') }}" class="hub__card student">
-        <div class="hub__card-icon">👨‍🎓</div>
         <div class="hub__card-role">STUDENT PORTAL</div>
         <div class="hub__card-title">Student</div>
         <div class="hub__card-desc">Submit academic data, get AI-powered predictions, personalised recommendations, and chat with your assistant.</div>
-        <div class="hub__card-btn">SIGN IN AS STUDENT →</div>
+        <div class="hub__card-btn">SIGN IN AS STUDENT</div>
       </a>
     </div>
     <div class="hub__footer">ScholarAI v2.0 &nbsp;|&nbsp; Flask + Oracle Edition</div>

@@ -1,3 +1,4 @@
+<!-- This page displays a history of all the performance predictions the student has run. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,6 +15,7 @@
     <div class="section-head">
       <div class="section-head__left"><div class="section-head__bar" style="background:var(--cyan);"></div><span class="section-head__title">Search Prediction Records</span></div>
     </div>
+    <!-- Students can use this form to filter their past predictions by subject or risk level. -->
     <form method="GET" action="{{ url_for('student.activity') }}" style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:flex-end;">
       <div class="form-group">
         <label class="form-label">Subject</label>
@@ -74,7 +76,7 @@
       </table>
     </div>
     <div class="table-footer">
-      <a href="{{ url_for('student.dashboard') }}"><button class="btn btn-ghost sm">← BACK TO DASHBOARD</button></a>
+      <a href="{{ url_for('student.dashboard') }}"><button class="btn btn-ghost sm">BACK TO DASHBOARD</button></a>
       <span class="mono fs-11 text-muted">{{ history|length }} record{{ 's' if history|length != 1 else '' }} found</span>
     </div>
   </div>

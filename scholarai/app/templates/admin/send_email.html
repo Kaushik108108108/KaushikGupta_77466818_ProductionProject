@@ -1,3 +1,4 @@
+<!-- This page allows administrators to compose and send emails to students and their guardians. -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -21,45 +22,26 @@
   <div class="page">
     <div class="breadcrumb">
       <a href="{{ url_for('admin.dashboard') }}">DASHBOARD</a>
-      <span class="breadcrumb__sep">›</span>
+      <span class="breadcrumb__sep">/</span>
       <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}">{{ student.student_id }}</a>
-      <span class="breadcrumb__sep">›</span>
+      <span class="breadcrumb__sep">/</span>
       <span class="breadcrumb__current">SEND EMAIL</span>
       <div class="breadcrumb__actions">
         <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}"><button
-            class="btn btn-ghost sm">← BACK</button></a>
+            class="btn btn-ghost sm">BACK</button></a>
       </div>
     </div>
 
     <div class="toast-container">
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
+      <!-- These toast messages appear briefly to confirm if an email was sent. -->
       <div class="alert {% if cat=='success' %}success{% else %}danger{% endif %}" id="toastMsg">
-        <span class="alert__icon">
-          {% if cat=='success' %}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 2L11 13"></path>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-          </svg>
-          {% else %}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          {% endif %}
-        </span>
         <div class="alert__text">{{ msg }}</div>
         <button class="btn btn-ghost sm"
           style="border:none; padding:4px; height:auto; color:inherit; opacity:0.6; display:flex; align-items:center;"
           onclick="this.parentElement.remove()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
+          CLOSE
         </button>
       </div>
       {% endfor %}
@@ -67,7 +49,7 @@
     </div>
 
     <script>
-      // Auto-dismiss toast after 5 seconds
+      // We automatically hide toast messages after 2 seconds to keep the screen clean.
       document.addEventListener('DOMContentLoaded', function () {
         const toast = document.getElementById('toastMsg');
         if (toast) {
@@ -161,7 +143,7 @@
         <div class="flex gap-8" style="justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border);">
           <a href="{{ url_for('admin.student_details', student_id=student.student_id) }}"><button type="button"
               class="btn btn-ghost">CANCEL</button></a>
-          <button type="submit" class="btn btn-primary" id="sendEmailBtn">📧 SEND EMAIL →</button>
+          <button type="submit" class="btn btn-primary" id="sendEmailBtn">SEND EMAIL</button>
         </div>
       </form>
     </div>
@@ -181,16 +163,11 @@
       const container = document.querySelector('.toast-container');
       const toast = document.createElement('div');
       toast.className = `alert ${isSuccess ? 'success' : 'danger'}`;
+      // This function creates a new toast notification and adds it to the page.
       toast.innerHTML = `
-        <span class="alert__icon">
-            ${isSuccess
-          ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>'
-          : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>'
-        }
-        </span>
         <div class="alert__text">${msg}</div>
         <button class="btn btn-ghost sm" style="border:none; padding:4px; height:auto; color:inherit; opacity:0.6; display:flex; align-items:center;" onclick="this.parentElement.remove()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            CLOSE
         </button>
       `;
       container.appendChild(toast);
@@ -212,8 +189,9 @@
         const btn = document.getElementById('sendEmailBtn');
         if (btn.disabled) return;
 
+        // While the email is being sent, we update the button text to let the user know.
         const originalHTML = btn.innerHTML;
-        btn.innerHTML = '⏳ SENDING...';
+        btn.innerHTML = 'SENDING...';
         btn.disabled = true;
 
         const formData = new FormData(form);
@@ -237,7 +215,7 @@
         .then(data => {
           showToast(data.message, true);
           window.scrollTo({ top: 0, behavior: 'smooth' });
-          btn.innerHTML = '✓ SENT';
+          btn.innerHTML = 'SENT';
           btn.classList.add('sent-state');
         })
         .catch(err => {

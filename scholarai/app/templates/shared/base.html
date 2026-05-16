@@ -1,3 +1,4 @@
+<!-- This is the foundation for every page on our website. It includes the shared styles and scripts. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,12 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon"/>
   <title>ScholarAI — {% block title %}{% endblock %}</title>
+  <!-- This section pulls in our global design settings and specific styles for each page. -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
   {% block head %}{% endblock %}
 </head>
 <body data-role="{{ role | default('') }}">
-{% block body %}{% endblock %}
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
-{% block scripts %}{% endblock %}
+  <!-- This is where the unique content of each page will be placed. -->
+  {% block body %}{% endblock %}
+
+  <!-- We load our main logic script at the bottom to make the page load faster. -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

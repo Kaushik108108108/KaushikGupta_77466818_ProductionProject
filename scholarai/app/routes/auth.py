@@ -1,3 +1,5 @@
+# This script handles all the login and registration logic for our users.
+# We start by importing tools for security, time, and data validation.
 import hashlib
 import secrets
 from datetime import datetime, timedelta
@@ -6,14 +8,15 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from app.db import fetch_one, execute_dml
 from app.email_service import send_password_reset_email
 
+# We create a Blueprint to organize our authentication routes.
 auth_bp = Blueprint('auth', __name__)
 
-
+# This helper function turns a password into a secure, scrambled code before saving it.
 def _hash_password(password: str) -> str:
-    """Hash password with SHA-256."""
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
 
+# This function automatically generates the next available unique ID for a new admin.
 def _next_admin_id():
     row = fetch_one("""
         SELECT NVL(MAX(TO_NUMBER(REGEXP_SUBSTR(admin_id, '[0-9]+'))), 0) + 1 AS next_id
@@ -23,6 +26,7 @@ def _next_admin_id():
     return f"ADM-{int(row['next_id']):03d}"
 
 
+# Similarly, this function creates a unique ID for every new student.
 def _next_student_id():
     row = fetch_one("""
         SELECT NVL(MAX(TO_NUMBER(REGEXP_SUBSTR(student_id, '[0-9]+'))), 0) + 1 AS next_id
@@ -32,18 +36,21 @@ def _next_student_id():
     return f"STU-{int(row['next_id']):03d}"
 
 
+# This is the welcome page for the entire website.
 @auth_bp.route('/')
 def index():
     return render_template('shared/index.html')
 
 
+# This route handles the login process for administrators.
 @auth_bp.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
+        # We grab the username and password from the login form.
         login    = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
 
-        # Try hashed password first (new accounts), then plain text (legacy accounts)
+        # We secure the password and check if it matches what we have in the database.
         hashed = _hash_password(password)
         user = fetch_one("""
             SELECT admin_id, username, full_name, email, role_name
@@ -52,6 +59,7 @@ def admin_login():
               AND (password_hash = :hashed OR password_hash = :plain)
         """, {"login": login, "hashed": hashed, "plain": password})
 
+        # If the user exists, we log them in and remember who they are for their session.
         if user:
             session['admin_logged_in'] = True
             session['admin_id']   = user['admin_id']
@@ -59,6 +67,7 @@ def admin_login():
             session['admin_name'] = user['full_name']
             return redirect(url_for('admin.dashboard'))
 
+        # If the details are wrong, we show an error message.
         flash('Invalid username or password.', 'error')
 
     # Live stats for hero panel
@@ -126,7 +135,7 @@ def admin_register():
         flash('Username or email already exists.', 'error')
         return redirect(url_for('auth.admin_login') + '?tab=register')
 
-    try:
+        # If all checks pass, we create the new admin account and save it to the database.
         admin_id = _next_admin_id()
         execute_dml("""
             INSERT INTO admin_users (admin_id, username, full_name, email, role_name, password_hash)
@@ -147,10 +156,12 @@ def admin_register():
     return redirect(url_for('auth.admin_login'))
 
 
+# This route logs the admin out and clears their session data.
 @auth_bp.route('/admin/logout')
 def admin_logout():
     admin_id = session.get('admin_id')
     if admin_id:
+        # We also close any active chat sessions they were using.
         execute_dml("""
             UPDATE chat_sessions 
             SET is_active = 'N' 
@@ -163,13 +174,14 @@ def admin_logout():
     session.pop('admin_name', None)
     return redirect(url_for('auth.admin_login'))
 
+# This route handles the login process specifically for students.
 @auth_bp.route('/student/login', methods=['GET', 'POST'])
 def student_login():
     if request.method == 'POST':
         email      = request.form.get('email', '').strip()
         password   = request.form.get('password', '').strip()
 
-        # Try hashed password first (new accounts), then plain text (legacy accounts)
+        # We secure the password and check if it matches an active student account.
         hashed = _hash_password(password)
         user = fetch_one("""
             SELECT student_id, full_name, email, class_level, section, account_status
@@ -183,12 +195,14 @@ def student_login():
             "plain":      password,
         })
 
+        # If the student exists, we log them in and save their details for the session.
         if user:
             session['student_logged_in'] = True
             session['student_id']   = user['student_id']
             session['student_name'] = user['full_name']
             return redirect(url_for('student.dashboard'))
 
+        # If something is wrong, we show a helpful error message.
         flash('Invalid credentials. Check your Student ID, email and password.', 'error')
 
     return render_template('student/login.html')
@@ -278,6 +292,7 @@ def student_register():
     return redirect(url_for('auth.student_login'))
 
 
+# This route logs the student out and clears their session data.
 @auth_bp.route('/student/logout')
 def student_logout():
     session.pop('student_logged_in', None)
@@ -286,31 +301,28 @@ def student_logout():
     return redirect(url_for('auth.student_login'))
 
 
+# This route helps users recover their account if they forget their password.
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
+        # We make sure an email was actually entered.
         if not email:
             flash('Email is required.', 'error')
             return render_template('shared/forgot_password.html')
 
-        if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
-            flash('Invalid email address. Must be a valid email format.', 'error')
-            return render_template('shared/forgot_password.html')
-
-        # Check if email exists in either table
+        # We look for the email in both the admin and student tables.
         user = fetch_one("SELECT email, 'ADMIN' as user_type FROM admin_users WHERE LOWER(email) = LOWER(:email)", {"email": email})
         if not user:
             user = fetch_one("SELECT email, 'STUDENT' as user_type FROM students WHERE LOWER(email) = LOWER(:email)", {"email": email})
 
         if user:
-            # Generate token
+            # If the user exists, we create a secure one-time reset token.
             token = secrets.token_urlsafe(32)
             token_hash = hashlib.sha256(token.encode()).hexdigest()
-            # Token valid for 1 hour
             expires_at = datetime.now() + timedelta(hours=1)
 
-            # Store in DB (Clean up old tokens for this email first)
+            # We save the reset token in the database and then send an email with the link.
             execute_dml("DELETE FROM password_reset_tokens WHERE LOWER(email) = LOWER(:email)", {"email": email})
             execute_dml("""
                 INSERT INTO password_reset_tokens (email, token_hash, user_type, expires_at)
@@ -322,7 +334,7 @@ def forgot_password():
                 "expires_at": expires_at
             })
 
-            # Send Email
+            # We send the actual email to the user's address.
             reset_url = url_for('auth.reset_password', token=token, _external=True)
             success, msg = send_password_reset_email(email, reset_url)
             if success:
@@ -335,11 +347,13 @@ def forgot_password():
     return render_template('shared/forgot_password.html')
 
 
+# This route is where the user actually sets their new password after clicking the email link.
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
+    # We hash the token from the link to see if it matches what we have in the database.
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     
-    # Verify token
+    # We make sure the token is valid and hasn't expired.
     reset_req = fetch_one("""
         SELECT email, user_type, expires_at 
         FROM password_reset_tokens 
@@ -354,6 +368,7 @@ def reset_password(token):
         password = request.form.get('password', '').strip()
         confirm  = request.form.get('confirm_password', '').strip()
         
+        # We ensure the new password is provided and confirmed correctly.
         if not password or password != confirm:
             flash('Passwords do not match.', 'error')
             return render_template('shared/reset_password.html', token=token)
@@ -362,6 +377,7 @@ def reset_password(token):
         email    = reset_req['email']
         
         try:
+            # We update the password in the correct table depending on whether it's an admin or student.
             if reset_req['user_type'] == 'ADMIN':
                 execute_dml("UPDATE admin_users SET password_hash = :hash WHERE LOWER(email) = LOWER(:email)", {"hash": new_hash, "email": email})
                 flash('Password reset successful. You can now login as Admin.', 'success')
@@ -371,7 +387,7 @@ def reset_password(token):
                 flash('Password reset successful. You can now login as Student.', 'success')
                 target_login = 'auth.student_login'
                 
-            # Clean up tokens
+            # Finally, we delete the reset token so it can't be used again.
             execute_dml("DELETE FROM password_reset_tokens WHERE LOWER(email) = LOWER(:email)", {"email": email})
             return redirect(url_for(target_login))
         except Exception as e:

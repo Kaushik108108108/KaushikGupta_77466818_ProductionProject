@@ -1,3 +1,4 @@
+<!-- This is the main dashboard for administrators where they can see student stats and manage risk levels. -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -15,56 +16,55 @@
   <div class="page">
 
     {% if stats.high > 0 %}
+    <!-- We show a prominent alert if there are students flagged as high risk. -->
     <div class="alert danger">
-      <span class="alert__icon">⚠</span>
       <div class="alert__text"><strong>{{ stats.high }} students flagged as HIGH RISK</strong> — Immediate intervention
         recommended.</div>
       <div class="alert__action">
-        <a href="{{ url_for('admin.dashboard', risk='high') }}"><button class="btn btn-danger sm">VIEW ALL
-            →</button></a>
+        <a href="{{ url_for('admin.dashboard', risk='high') }}"><button class="btn btn-danger sm">VIEW ALL</button></a>
       </div>
     </div>
     {% endif %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
+    <!-- These alerts show success or error messages from the server. -->
     <div class="alert {% if cat == 'success' %}success{% else %}danger{% endif %}" style="margin-bottom:16px;">
-      <span class="alert__icon">{% if cat == 'success' %}✓{% else %}⚠{% endif %}</span>
       <div class="alert__text">{{ msg }}</div>
     </div>
     {% endfor %}
     {% endwith %}
 
     <div class="stat-row cols-5">
+      <!-- Total Students block -->
       <div class="stat-rect blue" style="cursor:pointer;" onclick="window.location='{{ url_for('admin.dashboard') }}'">
-        <span class="stat-rect__icon">👥</span>
         <div class="stat-rect__label">Total Students</div>
         <div class="stat-rect__value">{{ stats.total }}</div>
         <div class="stat-rect__sub">Enrolled this academic year</div>
       </div>
+      <!-- High Risk block -->
       <div class="stat-rect red" style="cursor:pointer;"
         onclick="window.location='{{ url_for('admin.dashboard', risk='high') }}'">
-        <span class="stat-rect__icon">⚠</span>
         <div class="stat-rect__label">High Risk</div>
         <div class="stat-rect__value">{{ stats.high }}</div>
-        <div class="stat-rect__sub">Immediate attention ↓</div>
+        <div class="stat-rect__sub">Immediate attention</div>
       </div>
+      <!-- Medium Risk block -->
       <div class="stat-rect amber" style="cursor:pointer;"
         onclick="window.location='{{ url_for('admin.dashboard', risk='medium') }}'">
-        <span class="stat-rect__icon">📊</span>
         <div class="stat-rect__label">Medium Risk</div>
         <div class="stat-rect__value">{{ stats.medium }}</div>
-        <div class="stat-rect__sub">Active monitoring ↓</div>
+        <div class="stat-rect__sub">Active monitoring</div>
       </div>
+      <!-- Low Risk block -->
       <div class="stat-rect green" style="cursor:pointer;"
         onclick="window.location='{{ url_for('admin.dashboard', risk='low') }}'">
-        <span class="stat-rect__icon">🛡️</span>
         <div class="stat-rect__label">Low Risk</div>
         <div class="stat-rect__value">{{ stats.low }}</div>
-        <div class="stat-rect__sub">Stable performance ↓</div>
+        <div class="stat-rect__sub">Stable performance</div>
       </div>
+      <!-- Performance Index block -->
       <div class="stat-rect cyan">
-        <span class="stat-rect__icon">📈</span>
         <div class="stat-rect__label">Performance Index</div>
         <div class="stat-rect__value">{{ stats.avg_pi }}%</div>
         <div class="stat-rect__sub">School-wide average</div>
@@ -93,7 +93,7 @@
           </span>
         </div>
         <div class="section-head__actions" style="flex-wrap:wrap;gap:8px;">
-          <!-- SEARCH -->
+          <!-- We have a search bar to quickly find students by their name or ID. -->
           <form method="GET" style="display:flex;gap:0;">
             <input type="hidden" name="cls" value="{{ cls_filter }}" />
             <input type="hidden" name="sec" value="{{ sec_filter }}" />
@@ -103,11 +103,11 @@
             <button type="submit" class="btn btn-primary sm">SEARCH</button>
             {% if search_query %}
             <a href="{{ url_for('admin.dashboard', cls=cls_filter, sec=sec_filter, risk=risk_filter) }}">
-              <button type="button" class="btn btn-ghost sm">✕</button>
+              <button type="button" class="btn btn-ghost sm">X</button>
             </a>
             {% endif %}
           </form>
-          <!-- FILTERS -->
+          <!-- Filters to narrow down the student list by class, section, or risk level. -->
           <form method="GET" style="display:flex;gap:8px;align-items:center;">
             {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}" />{% endif %}
             <select name="cls" id="clsFilter" class="form-control" style="width:120px;padding:6px 10px;font-size:11px;"
@@ -140,7 +140,8 @@
             <a href="{{ url_for('admin.dashboard') }}"><button type="button" class="btn btn-ghost sm">CLEAR</button></a>
             {% endif %}
           </form>
-          <button class="btn btn-danger sm" id="bulkEmailBtn">📧 BULK EMAIL HIGH RISK</button>
+          <!-- This button allows admins to send an alert to all high-risk students at once. -->
+          <button class="btn btn-danger sm" id="bulkEmailBtn">BULK EMAIL HIGH RISK</button>
         </div>
       </div>
 
@@ -203,16 +204,17 @@
         </span>
         {% if risk_filter or search_query or cls_filter or sec_filter %}
         <a href="{{ url_for('admin.dashboard') }}"><button class="btn btn-ghost sm"
-            style="margin-right:auto; margin-left: 12px;">✕ CLEAR FILTERS</button></a>
+            style="margin-right:auto; margin-left: 12px;">CLEAR FILTERS</button></a>
         {% endif %}
+        <!-- Navigation for browsing through multiple pages of students. -->
         <div class="pagination">
           {% if page > 1 %}
           <a href="{{ url_for('admin.dashboard', page=page-1, cls=cls_filter, sec=sec_filter, risk=risk_filter, q=search_query) }}"
             style="text-decoration:none;">
-            <button class="page-btn">←</button>
+            <button class="page-btn">PREVIOUS</button>
           </a>
           {% else %}
-          <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">←</button>
+          <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">PREVIOUS</button>
           {% endif %}
 
           {% for p in range(1, total_pages + 1) %}
@@ -227,10 +229,10 @@
             {% if page < total_pages %} <a
               href="{{ url_for('admin.dashboard', page=page+1, cls=cls_filter, sec=sec_filter, risk=risk_filter, q=search_query) }}"
               style="text-decoration:none;">
-              <button class="page-btn">→</button>
+              <button class="page-btn">NEXT</button>
               </a>
               {% else %}
-              <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">→</button>
+              <button class="page-btn" disabled style="opacity:0.5;cursor:not-allowed;">NEXT</button>
               {% endif %}
         </div>
       </div>
@@ -241,6 +243,7 @@
     var classSections = {{ class_sections | tojson }};
     var allSections = {{ all_sections | tojson }};
     var highRiskCount = {{ high_risk_count }};
+    // This script helps automatically update the list of sections when a class is selected.
     function updateSections(selectedClass) {
       var secSelect = document.getElementById('secFilter');
       var currentSec = secSelect.value;
@@ -254,7 +257,7 @@
         secSelect.appendChild(opt);
       });
     }
-    // Fix bulk email button to use actual high-risk count
+    // This script handles the bulk email process, including showing a confirmation and updating the button text.
     document.addEventListener('DOMContentLoaded', function () {
       var btn = document.getElementById('bulkEmailBtn');
       if (btn) {
@@ -264,21 +267,21 @@
             return;
           }
           if (confirm('Send warning emails to all ' + highRiskCount + ' HIGH RISK students and their guardians?')) {
-            this.textContent = '⏳ SENDING TO ' + highRiskCount + ' STUDENTS...';
+            this.textContent = 'SENDING TO ' + highRiskCount + ' STUDENTS...';
             this.disabled = true;
             fetch('/admin/bulk-email-high-risk', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
               .then(r => r.json())
               .then(data => {
-                this.textContent = '✓ ' + (data.sent || highRiskCount) + ' EMAILS SENT';
+                this.textContent = (data.sent || highRiskCount) + ' EMAILS SENT';
                 this.style.background = 'var(--green)';
                 setTimeout(() => {
-                  this.textContent = '📧 BULK EMAIL HIGH RISK';
+                  this.textContent = 'BULK EMAIL HIGH RISK';
                   this.style.background = '';
                   this.disabled = false;
                 }, 3000);
               })
               .catch(() => {
-                this.textContent = '📧 BULK EMAIL HIGH RISK';
+                this.textContent = 'BULK EMAIL HIGH RISK';
                 this.disabled = false;
               });
           }
